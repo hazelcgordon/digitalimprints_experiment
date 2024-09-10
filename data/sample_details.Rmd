@@ -18,6 +18,8 @@ library(webshot)
 
 ```
 
+This requires the main_datawrangle.Rmd document to have been run.
+
 ## Who was recruited for this study?
 
 ```{r include=FALSE}

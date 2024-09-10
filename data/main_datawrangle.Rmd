@@ -24,7 +24,7 @@ library(purrr)
 
 ```{r read df}
 
-data <- read.csv("main_data.csv")
+data <- read.csv("data/main_data.csv")
 
 #change name of row number identifier
 

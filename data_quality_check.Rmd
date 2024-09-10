@@ -90,7 +90,7 @@ The following code can be checked by other researchers.
 
 ```{r reading in data}
 
-data <- read.csv("main_data.csv")
+data <- read.csv("data/main_data.csv")
 
 ```
 
@@ -214,4 +214,4 @@ data <- data %>%
 
 ```
 
-
+A condensed version of this process (without the explanatory text) is completed at the beginning of each analysis document.
