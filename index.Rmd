@@ -8,8 +8,10 @@ author:
 -   name: Hazel Gordon
 output: 
   html_document:
+    theme: "flatly"
     toc: true
-    css: styles.css
+    toc_float: true
+    highlight: "haddock"
 ---
 
 ```{r setup, include=FALSE}
@@ -778,7 +780,7 @@ rm(list=setdiff(ls(), c("data", "imprint_df", "training_df")))
 
 This document relies on the correct data frames having been formed from the code above which can be viewed under 'details'. This information is also stored in a seperate R Markdown document 'datawrangling_code.Rmd'. The correct data frames used in the following analyses are called: imprint_df and training_df. Some hypotheses are tested using the former dataframe, which includes four rows for each participant to capture the repeated measures part of the experiment. Some hypotheses are tested using the latter dataframe, which includes only one row per participant.
 
-### Research questions
+## Research questions
 
 Research theme 1: the effect of viewing a digital imprint on subsequent evaluations
 
@@ -1139,58 +1141,42 @@ The choice to prioritise random intercepts but not random slopes in this model i
 
 ```{r political goal actual informedness, include=FALSE}
 
-ainform_pg <- lmer(PG_value ~ version + (1|id) + (1|advert), data = imprint_df)
+#random effect structure variations to check model fit
 
-#issue with convergence for model below, used apex package to investigate, bobyqa was able to converge
-
-ainform_pg2 <- lmer(PG_value ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df)
+ainform_pg <- lmer(PG_value ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"))
 
 #random slopes for version and advert
 
-ainform_pg3 <- lmer(PG_value ~ version + Training.condition + (1 | id) + (1 + version|advert), data = imprint_df)
+ainform_pg1 <- lmer(PG_value ~ version + Training.condition + (1|id) + (1 + version|advert), 
+                    data = imprint_df, 
+                    control = lmerControl(optimizer = "bobyqa"))
 
-# fixed effect interaction for version and advert
+# advert:version intercept vary
 
-ainform_pg4 <- lmer(PG_value ~ version*advert + Training.condition + (1 | id), data = imprint_df)
+ainform_pg2 <- lmer(PG_value ~ version + Training.condition + (1 | id) + (1|advert:version), data = imprint_df)
 
-# basic model
+# fixed effect interaction version and training
 
-ainform_pg5 <- lmer(PG_value ~ version + advert + Training.condition + (1 | id), data = imprint_df)
+ainform_pg3 <- lmer(PG_value ~ version*Training.condition + (1 | id) + (1|advert), data = imprint_df)
 
-#compare models to see if fit it improved
 
-#coef(ainform_pk3)
-#summary(ainform_pk2)
-#allFit(ainform_pk2)
-#anova(ainform_pk3, ainform_pk4)
-#AIC(ainform_pk2, ainform_pk6)
+AIC(ainform_pg, ainform_pg1, ainform_pg2, ainform_pg3)
 
-# checking against a reduced model
-
-library(afex)
-
-mixed(PG_value ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
-
-mixed(PG_value ~ version + Training.condition + (1 | id) + (1+version|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
-
-mixed(PG_value ~ version*advert + Training.condition + (1 | id), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
-
-mixed(PG_value ~ version + advert + Training.condition + (1 | id), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
-
-#comparing model fit
-
-AIC(ainform_pg2, ainform_pg3, ainform_pg4, ainform_pg5)
 
 ```
 
+Below shows the skewed nature of the outcome variable, as well as the association seperately for each advert.
+
 ```{r, echo=FALSE}
 
+#advert level differences
+
 imprint_df %>% 
-  ggplot(mapping = aes(x = factor(version), y = PK, colour = factor(advert))) +
+  ggplot(mapping = aes(x = factor(version), y = PG_value, colour = factor(advert))) +
   geom_point() +
   geom_jitter(alpha = 0.1) +
   geom_smooth(mapping = aes(group = advert), method = "lm", se = FALSE, fullrange = TRUE) +
-  labs(y = "Percieved Persuasive Intent",
+  labs(y = "Percieved Political Nature",
     colour = "Advert", x = "Version") +
   theme_minimal()
 
@@ -1205,17 +1191,10 @@ imprint_df %>%
 
 inform_pg_tab <- tab_model(ainform_pg, 
                            pred.labels = c("Intercept", "Digital Imprint 
-                                           included"),
+                                           included", "Training Condition"),
                            dv.labels = "Perceived Political Nature")
 
 inform_pg_tab
-
-inform_pg_tab2 <- tab_model(ainform_pg2, 
-                           pred.labels = c("Intercept", "Digital Imprint 
-                                           included"),
-                           dv.labels = "Perceived Political Nature")
-
-inform_pg_tab2
 
 ```
 
@@ -1324,23 +1303,26 @@ Did the presence of a digital imprint with a piece of campaign material increase
 
 ```{r persuasion knowledge actual informedness}
 
-ainform_pk <- lmer(PK ~ version + (1|id) + (1|advert), data = imprint_df)
+#ainform_pk <- lmer(PK ~ version + (1|id) + (1|advert), data = imprint_df)
 
 #issue with convergence for model below, used apex package to investigate, bobyqa was able to converge
 
-ainform_pk2 <- lmer(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"))
+ainform_pk1 <- lmer(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"))
 
 #random slopes for version and advert
 
-ainform_pk3 <- lmer(PK ~ version + Training.condition + (1 | id) + (1 + version|advert), data = imprint_df)
+ainform_pk2 <- lmer(PK ~ version + Training.condition + (1| id) + (1 + version|advert), data = imprint_df)
 
-# fixed effect interaction for version and advert
+# advert:version intercept vary
 
-ainform_pk4 <- lmer(PK ~ version*advert + Training.condition + (1 | id), data = imprint_df)
+ainform_pk3 <- lmer(PK ~ version + Training.condition + (1 | id) + (1|advert:version), data = imprint_df)
 
-# basic model
+# fixed effect interaction version and training
 
-ainform_pk5 <- lmer(PK ~ version + advert + Training.condition + (1 | id), data = imprint_df)
+ainform_pk4 <- lmer(PK ~ version*Training.condition + (1 | id) + (1|advert), data = imprint_df)
+
+
+AIC(ainform_pk1, ainform_pk2, ainform_pk3, ainform_pk4)
 
 #compare models to see if fit it improved
 
@@ -1348,18 +1330,20 @@ ainform_pk5 <- lmer(PK ~ version + advert + Training.condition + (1 | id), data 
 
 mixed(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
 
-mixed(PK ~ version + Training.condition + (1 | id) + (1+version|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
+#p-values adjusted for false discovery rate
 
-mixed(PK ~ version*advert + Training.condition + (1 | id), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
+# Extract p-values from the summary of the model
+p_vals <- summary(ainform_pk1)$coefficients[, "Pr(>|t|)"]
 
-mixed(PK ~ version + advert + Training.condition + (1 | id), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
+#view original p-values
 
-summary(ainform_pk3)
+p_vals
 
-#comparing model fit
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
 
-AIC(ainform_pk2, ainform_pk3, ainform_pk4, ainform_pk5)
-BIC(ainform_pk3, ainform_pk5)
+# View the adjusted p-values
+adjusted_p_vals
 
 ```
 
@@ -1390,20 +1374,12 @@ ggplot(mean_predicted_values, aes(x = version, y = mean_predicted_PK, group = ad
 
 #Visualising the findings: table
 
-inform_pk_tab <- tab_model(ainform_pk, 
+inform_pk_tab <- tab_model(ainform_pk1, 
                            pred.labels = c("Intercept", "Digital Imprint 
-                                           included"),
+                                           included", "Training Condition"),
                            dv.labels = "Persuasion knowledge")
 
 inform_pk_tab
-
-inform_pk_tab2 <- tab_model(ainform_pk2, 
-                           pred.labels = c("Intercept", "Digital Imprint 
-                                           included"),
-                           dv.labels = "Persuasion knowledge")
-inform_pk_tab2
-
-tab_model(ainform_pk3)
 
 ```
 
@@ -1426,7 +1402,7 @@ ggplot(imprint_df, aes(x = factor(version), y = PK)) +
 #visualising the findings: model predictions
 
 # Generate predicted values using the ggeffects package
-preds <- ggpredict(ainform_pk, terms = "version")
+preds <- ggpredict(ainform_pk1, terms = "version")
 
 ggplot(preds, aes(x = x, y = predicted)) +
   geom_point() +  
@@ -1436,7 +1412,13 @@ ggplot(preds, aes(x = x, y = predicted)) +
   ylim(1, 7) +
   theme_minimal()
 
-#Including controls in the model
+```
+
+Below shoes the model checking the interaction effect as a supplementary analysis.
+
+```{r, echo=FALSE}
+
+summary(ainform_pk4)
 
 ```
 
@@ -1453,11 +1435,11 @@ The assumptions checked below are as follows:
 ```{r, echo=FALSE}
 
 # Check residuals for normality
-qqnorm(resid(ainform_pk)) 
-qqline(resid(ainform_pk))
+qqnorm(resid(ainform_pk1)) 
+qqline(resid(ainform_pk1))
 
 # variance of residuals
-df_residuals <- data.frame(fitted = fitted(ainform_pk), residuals = resid(ainform_pk))
+df_residuals <- data.frame(fitted = fitted(ainform_pk1), residuals = resid(ainform_pk1))
 
 ggplot(df_residuals, aes(x = fitted, y = residuals)) +
   geom_point() +
@@ -1466,7 +1448,7 @@ ggplot(df_residuals, aes(x = fitted, y = residuals)) +
 
 #checking for normal distribution of random effects
 
-ran_ef <- ranef(ainform_pk, condVar = TRUE)
+ran_ef <- ranef(ainform_pk1, condVar = TRUE)
 
 id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
 advert_effects <- ran_ef$advert[,1] #and for advert
@@ -1545,108 +1527,55 @@ recall_df <- recall_df %>%
 
 #below is the original model, it was updated due to statistical considerations
 
-#name_recall <- glm(recall ~ version, data = recall_df, family = binomial())
-
-#below is the final model, choson due to it's low AIC.
+#original <- glm(recall ~ version, data = recall_df, family = binomial())
 
 name_recall <- glmer(recall ~ version*Training.condition + 
-                          advert + (1|id), 
+                           (1|id) + (1|advert), 
                data = recall_df, 
                family = binomial(link = "logit"),
                control = glmerControl(optimizer = "bobyqa", 
                                             optCtrl = list(maxfun = 
                                                              1e5)))
 
+#sequential model building to determine effect size
 
-#sequential model building
-
-null <- glmer(recall ~ (1|id), 
+null <- glmer(recall ~ (1|id) + (1|advert), 
                data = recall_df, 
                family = binomial(link = "logit"))
 
-imprint_model <- glmer(recall ~ version + (1|id), 
+imprint_model <- glmer(recall ~ version + (1|id) + (1|advert), 
                data = recall_df, 
                family = binomial(link = "logit"))
 
 training_model <- glmer(recall ~ version + Training.condition + 
-                           (1|id), 
-               data = recall_df, 
-               family = binomial(link = "logit"))
-
-material_model <- glmer(recall ~ version + Training.condition + 
-                           advert + (1|id), 
+                           (1|id) + (1|advert), 
                data = recall_df, 
                family = binomial(link = "logit"))
   
 #to obtain log likelihood ratio test
 
 mixed(recall ~ version*Training.condition + 
-                          advert + (1|id), 
+                          (1|id) + (1|advert), 
                data = recall_df, 
                family = binomial(link = "logit"), 
       method = 'LRT')
 
-```
+#p-values adjusted for false discovery rate
 
-#### Table
+# Extract z-values
+z_vals <- summary(name_recall)$coefficients[, "z value"]
 
-```{r, eval=FALSE}
+# Compute two-tailed p-values from z-values
+p_vals <- 2 * (1 - pnorm(abs(z_vals)))
 
-#THIS CODE IS NOW INCORRECT AS BASED ON WRONG MODEL
+# View the p-values
+p_vals
 
-#p-values
+# Adjust p-values using the Benjamini-Hochberg (FDR) method
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
 
-sum_recall_table <- tab_model(name_recall, show.aic = TRUE) 
-
-sum_recall_table
-
-#to additionally show beta-coefficients
-
-summarise_model <- function(model) {
-  
-  # Extract the model summary
-  summary_df <- summary(model)$coefficients
-  
-  # Calculate odds ratios
-  odds_ratios <- exp(summary_df[, 1])
-  
-  # Calculate 95% confidence intervals for odds ratios
-  conf_int <- exp(confint(model))
-  
-  # Create a summary table
-  model_table <- data.frame(
-    Coefficient = summary_df[, 1],
-    SE = summary_df[, 2],
-    `Odds Ratio` = odds_ratios,
-    `Lower CI` = conf_int[,1],  # 2.5 % 
-    `Upper CI` = conf_int[,2]  # 97.5%
-  )
-  
-  return(model_table)
-}
-
-recall_table <- summarise_model(name_recall)
-
-column_names <- function(dataframe) {
-  dataframe <- dataframe %>%
-  rename(`Odds ratio` = `Odds.Ratio`,
-         `95% CI(lower)` = `Lower.CI`,
-         `95% CI(upper)` = `Upper.CI`)
-  return(dataframe)
-}
-
-recall_table <- column_names(recall_table)
-
-row_names <- function(dataframe) {
-  rownames(dataframe)[2] <- "Imprint viewed with material"
-  
-  return(dataframe)
-}
-
-recall_table <- row_names(recall_table)
-
-kable(recall_table, format = "html", digits = 2, caption = "Recall of campaigner name (coeffecient shown)") %>%
-  kable_classic(full_width = F, position = "center", html_font = "Cambria")
+# View adjusted p-values
+adjusted_p_vals
 
 ```
 
@@ -1729,37 +1658,56 @@ recall_interaction <- plot(interaction_plot_data) +
 
 ```
 
-#### Accounting for the nested data
+#### Advert level variations
 
-Testing the 4 different model variations to see which has the lowest AIC. The model with the lowest AIC was one that included the advert as a fixed effect, rather than a random intercept. 
+The effect of version is not found to be robust, when applying false discovery rate p-value corrections, suggesting it may vary between materials. This is checked below with a model that includes an interaction term between version and advert.
 
 ```{r, echo=FALSE}
 
-initial <- glmer(recall ~ version + Training.condition + (1|id) +
-                   (1|advert), data = recall_df, family = binomial(link = "logit"))
+#supplementary model 
 
-#fit is singular error message for 'maximal' model
-
-maximal <- glmer(recall ~ version + Training.condition + (1|id) + 
-                   (version|advert), 
+recall_materials <- glmer(recall ~ version*Training.condition + version*advert + 
+                           (1|id), 
                data = recall_df, 
-               family = binomial(link = "logit"))
-
-interaction <- glmer(recall ~ version*advert + Training.condition + 
-                     (1|id), 
-                     data = recall_df, 
-                     family = binomial(link = "logit"), 
-                     control = glmerControl(optimizer = "bobyqa", 
+               family = binomial(link = "logit"),
+               control = glmerControl(optimizer = "bobyqa", 
                                             optCtrl = list(maxfun = 
                                                              1e5)))
-  
-material_fixed <- glmer(recall ~ version + Training.condition + 
-                          advert + (1|id), 
-               data = recall_df, 
-               family = binomial(link = "logit"))
 
-AIC(initial, interaction, material_fixed)
-  
+#Bonferroni corrected multi-pair wise comparisons between adverts
+library(emmeans)
+
+# Get estimated marginal means (EMMs) for the interaction between version and advert
+emm <- emmeans(recall_materials, ~ version|advert)
+
+# Perform pairwise comparisons and get odds ratios
+pairwise_or <- contrast(emm, "revpairwise", type = "response", adjust = "bonferroni")
+
+#manual calculation of confidence intervals
+
+# Extract the log odds ratios and standard errors
+log_or_se <- as.data.frame(summary(pairwise_or))
+
+# Calculate confidence intervals
+log_or_se$lower.CL <- exp(log(log_or_se$odds.ratio) - 1.96 * log_or_se$SE)
+log_or_se$upper.CL <- exp(log(log_or_se$odds.ratio) + 1.96 * log_or_se$SE)
+
+# View the results with confidence intervals
+log_or_se
+
+#visualising the effect
+# Get predicted values
+predicted_recall <- predict(recall_materials, newdata = imprint_df)
+
+# Add predicted values to the data frame
+imprint_df1 <- cbind(imprint_df, predicted_recall)
+
+with(imprint_df1, interaction.plot(advert, version, predicted_recall,
+                                  type = "b", pch = c(1, 16), 
+                                  col = c("red", "blue"), 
+                                  main = "Interaction Plot", 
+                                  xlab = "Advert", 
+                                  ylab = "Predicted Recall"))
 
 ```
 
@@ -2047,7 +1995,9 @@ composite_plot
 
 </details>
 
-### Hypotheses 1c: outcome: perceived informedness
+### Hypotheses 1c and 2b: outcome: perceived informedness
+
+Hypothesis 1c:
 
 Did the presence of a digital imprint with a piece of campaign material increase participant's perception that they had been informed about the source of the content?
 
@@ -2055,11 +2005,42 @@ Did the presence of a digital imprint with a piece of campaign material increase
 - Predictor: version, binary factor
 - Random effects: id and advert
 
+Hypothesis 2b:
+
+Were trained participants more likely to correctly identify that they were less informed when a digital imprint was *not* present, and more informed when a digital imprint was present, compared to the group who received no training?
+
+- Outcome: perceived informedness, numerical 1-7
+- fixed effect: training condition x version of imprint viewed (interaction effect)
+- random effects: id and advert
+
 #### Model
 
-```{r}
+```{r, echo=FALSE}
 
-inform_pi <- lmer(informed ~ version + (1|id) + (1|advert), data = imprint_df)
+#Original pre-registered model:
+
+#inform_pi <- lmer(informed ~ version + (1|id) + (1|advert), data = imprint_df)
+
+#model variants in the results section
+
+informed_1 <- lmer(informed ~ version*Training.condition + (1|id) + (1|advert), data = imprint_df)
+
+informed_2 <- lmer(informed ~ version*Training.condition + (1|id) + (version|advert), data = imprint_df)
+
+informed_3 <- lmer(informed ~ version*Training.condition + (1|id) + (1|advert:version), data = imprint_df)
+
+AIC(informed_1, informed_2, informed_3)
+
+#p-values adjusted for false discovery rate
+
+# Extract p-values from the summary of the model
+p_vals <- summary(informed_1)$coefficients[, "Pr(>|t|)"]
+
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
+
+# View the adjusted p-values
+adjusted_p_vals
 
 ```
 
@@ -2069,10 +2050,10 @@ inform_pi <- lmer(informed ~ version + (1|id) + (1|advert), data = imprint_df)
 
 #Visualising the findings: table
 
-inform_pi_tab <- tab_model(inform_pi, 
+inform_pi_tab <- tab_model(informed_1, 
                            pred.labels = c("Intercept", "Digital Imprint 
-                                           included"),
-                           dv.labels = "Perceived informedness")
+                                           included", "Training Condition", "Digital Imprint x Training Condition"),
+                           dv.labels = "Perceived Subjective\n Informedness", show.se = TRUE)
 
 inform_pi_tab
 
@@ -2090,13 +2071,62 @@ ggplot(imprint_df, aes(x = factor(version), y = informed)) +
 
 ```
 
-#### Plotting: model predictions
+#### Plotting: Raw data
 
 ```{r, echo=FALSE, fig.align='center'}
 
-#visualising the findings: model predictions
+# Calculate summary statistics
+summary_stats <- imprint_df %>%
+  group_by(Training.condition, version) %>%
+  summarise(n = n(),
+            mean_informed = mean(informed, na.rm = TRUE),
+            sd_informed = sd(informed, na.rm = TRUE),
+            se_informed = sd_informed / sqrt(n),
+            ci_upper = mean_informed + 1.96 * se_informed,
+            ci_lower = mean_informed - 1.96 * se_informed) %>%
+  ungroup()
 
+kable(summary_stats, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved informedness") %>%
+  kable_classic(full_width = F, position = "center", html_font = "Cambria")
 
+#Plotting the raw data
+
+pi_plot <- ggplot(data = imprint_df, aes(x = Training.condition, y = informed, fill = version)) 
+
+pi_plot + 
+  geom_point(aes(color = version), position = position_jitterdodge(), alpha = 0.5) +
+  geom_boxplot(width = 0.2) +
+  theme_minimal()
+
+```
+
+#### Plotting: Model predictions
+
+```{r, echo=FALSE, fig.align='center'}
+
+preds <- ggpredict(informed_1, terms = c("Training.condition", "version"))
+
+plot(preds) +
+  ylim(1, 7) +
+  labs(title = "Interaction Effect",
+       x = "Training condition",
+       y = "Predicted perceived informedness",
+       color = "Digital imprint \n included")
+
+# Plot the interaction
+informed_interaction <- plot(preds) +
+  scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
+                     labels = c("Digital imprint Absent", "Digital Imprint Viewed")) +
+  labs(x = "Training Condition", 
+       y = "Predicted score (95% CI)",
+       title = "") +
+  ylim(1, 7) +
+  theme(legend.title = element_blank()
+  )
+
+informed_interaction
+
+#ggsave(filename = "figures/informed_interaction.png", plot = informed_interaction, width = 6, height = 4, dpi = 300)
 
 ```
 
@@ -2104,20 +2134,22 @@ ggplot(imprint_df, aes(x = factor(version), y = informed)) +
 
 <details>
 
-Assumptions checked:
+The following assumptions are checked:
 
 - Normality of residuals
 - Variance of residuals
-- Normality of residuals for the random effects
+- Normality of residuals within the random effects
+
+There are no key assumption violations, supporting that the model predictions are reliable.
 
 ```{r, echo=FALSE}
 
 # Check residuals for normality
-qqnorm(resid(inform_pi)) 
-qqline(resid(inform_pi))
+qqnorm(resid(informed_1)) 
+qqline(resid(informed_1))
 
 # Variance of residuals
-df_residuals <- data.frame(fitted = fitted(inform_pi), residuals = resid(inform_pi))
+df_residuals <- data.frame(fitted = fitted(informed_1), residuals = resid(informed_1))
 
 ggplot(df_residuals, aes(x = fitted, y = residuals)) +
   geom_point() +
@@ -2126,7 +2158,7 @@ ggplot(df_residuals, aes(x = fitted, y = residuals)) +
 
 #checking for normal distribution of random effects
 
-ran_ef <- ranef(inform_pi, condVar = TRUE)
+ran_ef <- ranef(informed_1, condVar = TRUE)
 
 id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
 advert_effects <- ran_ef$advert[,1] #and for advert
@@ -2509,135 +2541,6 @@ plot(fitted(correct_name), residuals(correct_name),
      xlab = "Fitted Values", ylab = "Residuals", 
      main = "Residuals vs. Fitted Values")
 abline(h = 0, col = "red")
-
-```
-
-</details>
-
-### Hypothesis 2b: outcome: percieved informedness
-
-Were trained participants more likely to correctly identify that they were less informed when a digital imprint was *not* present, and more informed when a digital imprint was present, compared to the group who received no training?
-
-#### Model
-
-- Outcome: perceived informedness, numerical 1-7
-- fixed effect: training condition x version of imprint viewed (interaction effect)
-- random effects: id and advert
-
-```{r}
-
-inform_training <- lmer(informed ~ Training.condition + version + Training.condition*version + (1|id) + (1|advert), data = imprint_df)
-
-```
-
-#### Table
-
-```{r, echo=FALSE}
-
-inform_train_tab <- tab_model(inform_training, 
-                           pred.labels = c("Intercept", "Training", "Digital Imprint 
-                                           included", "Training*imprint"),
-                           dv.labels = "Perceived Informedness")
-
-inform_train_tab
-
-```
-
-#### Plotting: Raw data
-
-```{r, echo=FALSE, fig.align='center'}
-
-# Calculate summary statistics
-summary_stats <- imprint_df %>%
-  group_by(Training.condition, version) %>%
-  summarise(n = n(),
-            mean_informed = mean(informed, na.rm = TRUE),
-            sd_informed = sd(informed, na.rm = TRUE),
-            se_informed = sd_informed / sqrt(n),
-            ci_upper = mean_informed + 1.96 * se_informed,
-            ci_lower = mean_informed - 1.96 * se_informed) %>%
-  ungroup()
-
-kable(summary_stats, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved informedness") %>%
-  kable_classic(full_width = F, position = "center", html_font = "Cambria")
-
-#Plotting the raw data
-
-pi_plot <- ggplot(data = imprint_df, aes(x = Training.condition, y = informed, fill = version)) 
-
-pi_plot + 
-  geom_point(aes(color = version), position = position_jitterdodge(), alpha = 0.5) +
-  geom_boxplot(width = 0.2) +
-  theme_minimal()
-
-```
-
-#### Plotting: Model predictions
-
-```{r, echo=FALSE, fig.align='center'}
-
-preds <- ggpredict(inform_training, terms = c("Training.condition", "version"))
-
-plot(preds) +
-  ylim(1, 7) +
-  labs(title = "Interaction Effect",
-       x = "Training condition",
-       y = "Predicted perceived informedness",
-       color = "Digital imprint \n included")
-
-```
-
-#### Assumptions
-
-<details>
-
-The following assumptions are checked:
-
-- Normality of residuals
-- Variance of residuals
-- Normality of residuals within the random effects
-
-There are no key assumption violations, supporting that the model predictions are reliable.
-
-```{r, echo=FALSE}
-
-# Check residuals for normality
-qqnorm(resid(inform_training)) 
-qqline(resid(inform_training))
-
-# Residual variance
-df_residuals <- data.frame(fitted = fitted(inform_training), residuals = resid(inform_training))
-
-ggplot(df_residuals, aes(x = fitted, y = residuals)) +
-  geom_point() +
-  geom_hline(yintercept = 0, col = "red") +
-  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs Fitted Values")
-
-#checking for normal distribution of random effects
-
-ran_ef <- ranef(inform_training, condVar = TRUE)
-
-id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
-advert_effects <- ran_ef$advert[,1] #and for advert
-
-ggplot(data.frame(effect = id_effects), aes(sample = effect)) +
-  geom_qq() +
-  geom_qq_line() +
-  xlab("Theoretical Quantiles") +
-  ylab("Sample Quantiles") +
-  ggtitle("QQ Plot of Random Effects for 'id'")
-
-ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
-  geom_qq() +
-  geom_qq_line() +
-  xlab("Theoretical Quantiles") +
-  ylab("Sample Quantiles") +
-  ggtitle("QQ Plot of Random Effects for 'advert'")
-
-#checking with a test
-
-shapiro.test(id_effects)
-shapiro.test(advert_effects)
 
 ```
 
