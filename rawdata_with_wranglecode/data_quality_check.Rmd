@@ -1,0 +1,217 @@
+---
+title: "Checking data quality and exclusions"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(dplyr)
+
+```
+
+This document describes the process that was taken by the researchers to ensure data quality. It shows how missing data and exclusions were identified and handled. The document is not designed to be run/knitted all together, but rather to be checked at each stage.
+
+For data protection reasons, the first code block cannot be run by other researchers. However, the code below shows how raw datasets were merged and matched for their prolific IDs. Dataset 1 included the survey data, dataset 2 the demographic information collected by Prolific to ensure a representative sample with information that can be compared with UK census data. These are merged for Prolific ID's, prolific ID's and then removed along with other identifiable information to create 'main_data.csv' that is openly available. 
+
+Data quality checks then are conducted on 'main_data.csv', which is the openly available dataset.
+
+### Using prolific IDs to merge datasets
+
+```{r}
+
+sample <- read.csv("prolific_demographic.csv")
+data <- read.csv("raw_data.csv")
+
+#begins with 1406 observations for sample
+
+#anyone who's status was returned or timed out is deleted
+
+sample <- sample %>%
+  filter(!(Status == "RETURNED" | Status == "TIMED-OUT" | Age == "CONSENT_REVOKED"))
+
+table(sample$Status)
+
+#checking for a frequency of 2 in Participant.id
+
+sample_freq <- sample$Participant.id
+
+sample_table <- table(sample_freq)
+
+filtered_sample <- sample_freq[sample_freq == 2]
+
+print(filtered_sample)
+
+#no repeated participant ID's
+
+#renaming sample dataset and removing unnecessary columns
+
+sample <- sample %>%
+  rename(PROLIFIC_PID = Participant.id,
+         age_sample = Age,
+         sex_sample = Sex)
+
+sample <- sample %>%
+  select(-Submission.id, - Status, -Custom.study.tncs.accepted.at, - Started.at, -Completed.at, -Reviewed.at, -Archived.at, -Completion.code, -Total.approvals)
+
+#merging datasets based on PROLIFIC_PID
+
+merged_df <- merge(data, sample, by = "PROLIFIC_PID", all = TRUE)
+
+#removing identifiable data columns
+
+merged_df <- merged_df %>%
+  select(-PROLIFIC_PID, -Status, -IPAddress, -ResponseId, -RecipientLastName, -RecipientEmail, -RecipientFirstName, -ExternalReference, -LocationLatitude, -LocationLongitude, -id, -feedback)
+
+#transforming age from a date to an age
+
+current_year <- format(Sys.Date(), "%Y")
+
+current_year <- as.numeric(current_year)
+merged_df$age <- as.numeric(merged_df$age)
+
+merged_df$age <- current_year - merged_df$age
+
+#writing as a csv
+
+write.csv(merged_df, file = "main_data_check.csv")
+
+#checking the time taken and demographics match up, showing successful merging
+
+merged_df <- merged_df %>%
+  select(Duration..in.seconds., Time.taken, age, age_sample, gender, sex_sample, everything())
+
+```
+
+The following code can be checked by other researchers.
+
+```{r reading in data}
+
+data <- read.csv("data/main_data.csv")
+
+```
+
+### Blank rows
+
+The original dataset included 1369 observations.
+
+On qualtrics, all responses bar campaigner name recall were forced response. This means, any row with blank data for variables other than the repeated measure variables  - of which participants only answered half due to the experimental manipulation - indicates missing data of which the whole row will need to be removed as the participant did not complete the study.
+
+These are identified by selecting the attention check variable answered by all participants: EPE_5 for blank responses. The choice of the attention check variable is arbitrary, and could be any variable answered by all participants.
+
+```{r blank column values}
+
+#below shows 12 rows with data missing
+
+table(data$EPE_5)
+
+#code below identifies these rows and removes them
+
+rows_with_blank_in_name <- grepl("^\\s*$", data$EPE_5)
+df_with_blanks_in_name <- data[rows_with_blank_in_name, ]
+
+print(df_with_blanks_in_name)
+
+#as can be seen, the participants either did not consent or did not spend longer than a few minutes on the survey. These rows are first excluded, leaving 1257 observations.
+
+data <- data[!rows_with_blank_in_name, ]
+
+#checking this returns only rows with responses for attention check 2
+
+table(data$EPE_5)
+
+```
+
+### Attention checks
+
+Attention check columns are: 
+
+- informed_2_5: participants asked to click response option 'strongly disagree'
+- informed_2imprint_5: participants asked to click response option 'strongly disagree'
+- EPE_5: strongly agree: participants asked to click response option 'strongly agree'
+
+Participants only viewed 1 of informed_2_5 or informed_2imprint_5, and they constitute the same variable across conditions.
+
+Functions are created below to identify participants who did not answer the attention checks correctly. They must fail both to be excluded from the study.
+
+```{r attention checks}
+
+informed_ids <- function(dataframe, var) {
+  # Filter rows where variable is not 'strongly disagree' and not a blank cell
+  filtered_df <- dataframe %>% 
+    filter(.data[[var]] != "Strongly disagree" & nzchar(.data[[var]]))
+  
+  # Return the PROLIFIC_PID column from the filtered dataframe
+  return(filtered_df$id)
+}
+
+#below creates two vectors containing the row numbers of those who answered with anything other than 'strongly disagree' for attention check 1.
+
+failed_inform <- informed_ids(data, "informed_2_5")
+failed_inform_imprint <- informed_ids(data, "informed_2imprint_5")
+
+epe_ids <- function(dataframe, var) {
+  # Filter rows where variable is not 'strongly disagree' and not a blank cell
+  filtered_df <- dataframe %>% 
+    filter(.data[[var]] != "Strongly agree" & nzchar(.data[[var]]))
+  
+  # Return the PROLIFIC_PID column from the filtered dataframe
+  return(filtered_df$id)
+}
+
+failed_epe <- epe_ids(data, "EPE_5")
+
+#the vectors are merged into one to detect which row numbers had a frequency of 2
+
+attention_check <- c(failed_inform, failed_inform_imprint, failed_epe)
+
+#Any participant who appears twice in the vectors has failed both attention checks
+
+frequency_table <- table(attention_check)
+
+filtered_values <- frequency_table[frequency_table == 2]
+
+#below then prints which row numbers failed both, and need to be excluded
+
+print(filtered_values)
+
+#removing these row numbers from the dataset
+
+data <- data %>%
+  filter(!(row_number() %in% c(420, 948, 1288, 1315)))
+
+#this makes it 1353 observations
+
+```
+
+### Median time
+
+The second exclusion rule was participants who answered in less than half the median time of 12 minutes, as this was not considered sufficient time to engage fully with the survey.
+
+Half of 12 minutes is 360 seconds. 
+
+It is noted that the Time.taken column provided by prolific shows a slightly higher number than the seconds identified by Qualtrics. It is assumed prolific includes time taken to review the information sheet and consent form, therefore the smaller Qualtrics numbers are used for exclusions here.
+
+```{r median time}
+
+#this code identifies how many row numbers will need to be excluded
+
+below_360 <- data$Duration..in.seconds.[data$Duration..in.seconds. < 360]
+
+length(below_360)
+
+#31 rows will be excluded based on this rule
+
+#filtering out these rows
+
+data <- data %>%
+  filter(Duration..in.seconds. >= 360)
+
+#the final number of observations for analysis are 1322
+
+```
+
+A condensed version of this process (without the explanatory text) is completed at the beginning of each analysis document.

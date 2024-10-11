@@ -1,0 +1,170 @@
+---
+title: "sampling"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse)
+library(scales)
+library(gt)
+library(webshot2)
+library(webshot)
+
+```
+
+This requires the main_datawrangle.Rmd document to have been run.
+
+## Who was recruited for this study?
+
+```{r include=FALSE}
+
+#setting factor levels for main sample variables
+
+training_df$gender <- factor(training_df$gender, levels = c("Female", "Male", "Non-binary / third gender", "Prefer not to say"))
+
+training_df$education <- factor(training_df$education, levels = c("Postgraduate (e.g. M.Sc, Ph.D)", "Undergraduate University (e.g. BA, B.Sc, B.Ed)", "A-level, or equivalent", "GCSE level, or equivalent", "No formal qualifications", "Other, please specify"))
+
+#creating categories from age and political interest
+
+sample_cat <- training_df %>%
+  select(gender, education, partyID, age, political_interest) %>%
+  mutate(age_cat = case_when(
+         age >=18 & age <=29 ~ "18-29",
+         age >=30 & age <=39 ~ "30-39",
+         age >=40 & age <=49 ~ "40-49",
+         age >=50 & age <=59 ~ "50-59",
+         age >=60 & age <=69 ~ "60-69",
+         age >=70 & age <=79 ~ "70-79",
+         age >=80 ~ "80+",
+         TRUE ~ "unknown"
+         )) %>%
+  mutate(interest_cat = case_when(
+    political_interest == 1 ~ "Not at all interested",
+    political_interest == 2 ~ "Not very interested",
+    political_interest == 3 ~ "Slightly interested",
+    political_interest == 4 ~ "Fairly interested",
+    political_interest == 5 ~ "Very interested"
+  ))
+
+# Check for NA values in the age_sample column
+na_count <- sum(is.na(data$SM_use))
+print(paste("Number of NA values in age_sample:", na_count))
+
+#setting factor levels for age and political interest to arrange order
+
+sample_cat$age_cat <- factor(sample_cat$age_cat, levels = c("18-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"))
+
+sample_cat$interest_cat <- factor(sample_cat$interest_cat, levels = c("Not at all interested", "Not very interested", "Slightly interested", "Fairly interested", "Very interested"))
+
+# Function to replace text in a character column
+replace_text <- function(column, old_text, new_text) {
+  gsub(old_text, new_text, column)
+}
+
+#replace some category text
+
+sample_cat <- sample_cat %>%
+  mutate(partyID = replace_text(partyID, "Other, please specify___________", "Other"))
+
+#set factor levels for party
+
+sample_cat$partyID <- factor(sample_cat$partyID, levels = c("Conservative", "Labour", "Liberal Democrat", "Green Party", "Reform UK", "Scottish National Party (SNP)", "Alliance Party", "Democratic Unionist Party", "Sinn Féin", "Plaid Cymru", "United Kingdom Independence Party (UKIP)", "Other", "I do not identify with any political party"))
+
+```
+
+```{r echo=FALSE}
+
+# Function to create summary for a categorical variable
+summarise_sample <- function(data, var) {
+  data %>%
+    group_by(!!sym(var)) %>%
+    summarise(Frequency = n()) %>%
+    mutate(Percentage = round((Frequency / sum(Frequency)) * 100, 2)) %>%
+    rename(Category = !!sym(var))
+}
+
+# Summarise each categorical variable
+gender_summary <- summarise_sample(sample_cat, "gender")
+education_summary <- summarise_sample(sample_cat, "education")
+partyid_summary <- summarise_sample(sample_cat, "partyID")
+age_summary <- summarise_sample(sample_cat, "age_cat")
+interest_summary <- summarise_sample(sample_cat, "interest_cat")
+
+# merge
+
+sample <- bind_rows(
+  mutate(gender_summary, Variable = "gender"),
+  mutate(education_summary, Variable = "education"),
+  mutate(partyid_summary, Variable = "partyID"),
+  mutate(age_summary, Variable = "age_cat"),
+  mutate(interest_summary, Variable = "interest_cat")
+)
+
+sample <- sample %>%
+  select(Variable, Category, Frequency, Percentage)
+
+#reformat %
+
+sample <- sample %>%
+  mutate(
+    Percentage = Percentage / 100,  # Convert to decimal form
+    Percentage = percent(Percentage, accuracy = 0.1)
+  )
+
+```
+
+```{r}
+
+#change the variable cat names
+
+sample <- sample %>%
+  mutate(Variable = case_when(
+    Variable == "gender" ~ "Gender",
+    Variable == "education" ~ "Education",
+    Variable == "partyID" ~ "UK Partisan Affiliation",
+    Variable == "age_cat" ~ "Age",
+    Variable == "interest_cat" ~ "Political Interest",
+    TRUE ~ Variable  # Keep the original value if no match
+  ))
+
+gt_table <- sample %>%
+  gt(groupname_col = "Variable") %>%
+  tab_header(
+    title = "Sample Summary",
+    subtitle = "Breakdown of sample by gender, education, UK partisan affiliation, age, and political\n interest"
+  ) %>%
+  cols_label(
+    Variable = "",
+    Category = "",
+    Frequency = "Frequency",
+    Percentage = "Percentage (%)"
+  ) %>%
+  fmt_number(
+    columns = c(Percentage),
+    decimals = 1
+  ) %>%
+    tab_options(
+    table.font.size = 12,
+    heading.title.font.size = 14,
+    heading.subtitle.font.size = 12,
+    heading.align = "left",  # Left-align the title and subtitle
+    table.width = px(600)  # Increase table width
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = c(Frequency, Percentage)
+  )
+
+gt_table
+
+gtsave(gt_table, "sample/sample_summary.png", zoom = 2, vwidth = 700)
+
+```
+
+
