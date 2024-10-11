@@ -706,7 +706,7 @@ Variable descriptions for those with unclear names:
 #creating a new df with relevant variables e.g., controls for models
 
 control_measures <- data %>%
-  select(id, Training.condition, recall_num, recall_name, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, reg_know, useful_rank_1, political_interest, SM_use, SM_frequency_1, partyID, age_sample, gender, education)
+  select(id, Training.condition, recall_num, recall_name, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, reg_know, useful_rank_1, political_interest, SM_use, SM_frequency_1, partyID, age_sample, gender, education, Ethnicity.simplified)
 
 #matching id number with the repeated measures dataframe so these variables are repeated across rows
 
@@ -716,7 +716,7 @@ imprint_df <- repeated_measures %>%
 #changing the order of columns
 
 imprint_df <- imprint_df %>%
-  select(id, Advert.1, Advert.2, Advert.3, Advert.4, Training.condition, advert, version, PK, informed, PG_value, agree_value, trustworthy_value, believable_value, accurate_value, factual_value, recall_num, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, political_interest, reg_know, SM_use, SM_frequency_1, partyID, age_sample, gender, education, everything())
+  select(id, Advert.1, Advert.2, Advert.3, Advert.4, Training.condition, advert, version, PK, informed, PG_value, agree_value, trustworthy_value, believable_value, accurate_value, factual_value, recall_num, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, political_interest, reg_know, SM_use, SM_frequency_1, partyID, age_sample, gender, education, Ethnicity.simplified, everything())
 
 ```
 
@@ -744,7 +744,7 @@ Another aspect of the analysis will only require one row per participant, such a
 ```{r ind measures df}
 
 training_df <- data %>%
-  select(id, Training.condition, Advert.1, Advert.2, Advert.3, Advert.4, election_reg, recall_num, recall_correct, name_correct, name_incorrect, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, starts_with("useful_rank"), reg_know, starts_with("EPE"), starts_with("general_confidence"), starts_with("institution_trust"), democracy, political_interest, external_efficacy, internal_efficacy, SM_use, starts_with("SM_frequency"), partyID, age_sample, gender, education)
+  select(id, Training.condition, Advert.1, Advert.2, Advert.3, Advert.4, election_reg, recall_num, recall_correct, name_correct, name_incorrect, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, starts_with("useful_rank"), reg_know, starts_with("EPE"), starts_with("general_confidence"), starts_with("institution_trust"), democracy, political_interest, external_efficacy, internal_efficacy, SM_use, starts_with("SM_frequency"), partyID, age_sample, gender, education, Ethnicity.simplified)
 
 #Mean scoring EPE
 
@@ -815,16 +815,16 @@ Research question 4:
 
 ### A note about the RQ and hypotheses final paper
 
-In the final analysis, some changes were made to the original presentation of the research questions, the order of the hypotheses (please note that in content these stayed the same), and the analysis script that was pre-registered (the original can be viewed in the 'pilot_study' folder of the github repository).
+In the final analysis, some changes were made to the original presentation of the research questions, the order of the hypotheses (please note that in content these stayed the same), and the analysis script that was pre-registered (the original can be viewed in the 'rawdata_with_wranglecode' folder of the github repository).
 
-These changes did not reflect any substantial altering of the theorised associations between our variables, as reflected in how all hypotheses stayed the same. However, as we had a broad research focus and 8 key outcome measures, we refined our presentation of our research justification to more clearly situate it within the research; for example, by clearly justifying our focus on third-party campaigners. Additionally, we altered the order of our hypotheses to ensure the most efficient reporting of the outcomes. This documents represents the final version of all statistical models. 
+These changes did not reflect any substantial altering of the theorised associations between our variables, as reflected in how all hypotheses stayed the same. However, as we had a broad research focus and 8 key outcome measures, we refined our presentation of our research justification to more clearly situate it within existing research; for example, by clearly justifying our focus on third-party campaigners. Additionally, we altered the order of presentation for our hypotheses to ensure the most efficient reporting of the outcomes. This document includes the final version of all statistical models. 
 
 If you would like to run the original models for comparison please follow these steps:
 
 - Locate the 'rawdata_with_wranglecode' folder in the repo
 - Ensure you have 'main_data.csv' saved in the same R project
 - Download the 'preregistered_analysis_code.rmd' script
-- Check you have packages installed 
+- Check you have packages installed (there are two sets, one for creating the data structure and another for the analysis packages)
 - Knit the script for 'preregistered_analysis_code.rmd'
 
 *This should create an html document that can be scrolled through to view the original models, including all the assumptions for them (under the 'details' tabs)*
@@ -894,7 +894,9 @@ kable(alpha_results, col.names = c("Scale", "Alpha"), caption = "Cronbach's Alph
 
 ### Sample
 
-A representative sample option was used, matching UK census data for age, gender and ethnicity. The following table shows the make up of the sample for these demographics as well as education and political party identification, after exclusions.
+A representative sample option was used when collecting data from Prolific, matching UK census data for age, gender and ethnicity. The following table shows the make up of the sample for these demographics as well as education and political party identification, after exclusions.
+
+
 
 ### Univariate statistics
 
@@ -1110,7 +1112,6 @@ kable(percentage_df, "html", booktabs = TRUE, digits = 2,
 
 
 ```
-
 
 Below shows how regulation knowledge was distributed across the whole sample, with the third option being the correct answer. This measure is not included in the pre-registered analysis, but is helpful to get a sense of how knowledgeable the sample was regarding regulatory law in the UK. Training and no training condition are shown separately. It can be seen, the training did not appear to impact the frequency of responses, with the highest count of participant in each condition identifying the correct response option across both conditions.
 

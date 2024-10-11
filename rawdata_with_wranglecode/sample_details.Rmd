@@ -13,8 +13,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(scales)
 library(gt)
-library(webshot2)
-library(webshot)
 
 ```
 
@@ -30,10 +28,12 @@ training_df$gender <- factor(training_df$gender, levels = c("Female", "Male", "N
 
 training_df$education <- factor(training_df$education, levels = c("Postgraduate (e.g. M.Sc, Ph.D)", "Undergraduate University (e.g. BA, B.Sc, B.Ed)", "A-level, or equivalent", "GCSE level, or equivalent", "No formal qualifications", "Other, please specify"))
 
+training_df$Ethnicity.simplified <- factor(training_df$Ethnicity.simplified, levels = c("White", "Asian", "Black", "Mixed", "Other"))
+
 #creating categories from age and political interest
 
 sample_cat <- training_df %>%
-  select(gender, education, partyID, age, political_interest) %>%
+  select(gender, education, Ethnicity.simplified, partyID, age, political_interest) %>%
   mutate(age_cat = case_when(
          age >=18 & age <=29 ~ "18-29",
          age >=30 & age <=39 ~ "30-39",
@@ -53,7 +53,7 @@ sample_cat <- training_df %>%
   ))
 
 # Check for NA values in the age_sample column
-na_count <- sum(is.na(data$SM_use))
+na_count <- sum(is.na(sample_cat$age_cat))
 print(paste("Number of NA values in age_sample:", na_count))
 
 #setting factor levels for age and political interest to arrange order
@@ -92,6 +92,7 @@ summarise_sample <- function(data, var) {
 # Summarise each categorical variable
 gender_summary <- summarise_sample(sample_cat, "gender")
 education_summary <- summarise_sample(sample_cat, "education")
+ethnicity_summary <- summarise_sample(sample_cat, "Ethnicity.simplified")
 partyid_summary <- summarise_sample(sample_cat, "partyID")
 age_summary <- summarise_sample(sample_cat, "age_cat")
 interest_summary <- summarise_sample(sample_cat, "interest_cat")
@@ -101,6 +102,7 @@ interest_summary <- summarise_sample(sample_cat, "interest_cat")
 sample <- bind_rows(
   mutate(gender_summary, Variable = "gender"),
   mutate(education_summary, Variable = "education"),
+  mutate(ethnicity_summary, Variable = "Ethnicity.simplified"),
   mutate(partyid_summary, Variable = "partyID"),
   mutate(age_summary, Variable = "age_cat"),
   mutate(interest_summary, Variable = "interest_cat")
@@ -127,6 +129,7 @@ sample <- sample %>%
   mutate(Variable = case_when(
     Variable == "gender" ~ "Gender",
     Variable == "education" ~ "Education",
+    Variable == "Ethnicity.simplified" ~ "Ethnicity",
     Variable == "partyID" ~ "UK Partisan Affiliation",
     Variable == "age_cat" ~ "Age",
     Variable == "interest_cat" ~ "Political Interest",
@@ -137,7 +140,7 @@ gt_table <- sample %>%
   gt(groupname_col = "Variable") %>%
   tab_header(
     title = "Sample Summary",
-    subtitle = "Breakdown of sample by gender, education, UK partisan affiliation, age, and political\n interest"
+    subtitle = "Breakdown of sample by gender, education, ethnicity, UK partisan affiliation, age, \nand political interest"
   ) %>%
   cols_label(
     Variable = "",
@@ -163,7 +166,7 @@ gt_table <- sample %>%
 
 gt_table
 
-gtsave(gt_table, "sample/sample_summary.png", zoom = 2, vwidth = 700)
+#gtsave(gt_table, "details_of_sample/sample_summary.png", zoom = 2, vwidth = 700)
 
 ```
 
