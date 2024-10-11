@@ -10,7 +10,18 @@ Overall, this study fits within a growing body of research seeking to understand
 
 Below contains details of how this repository is structured:
 
-- 
+- doc: 'index.rmd': this is the main analysis document of the project, that includes all the code for the final version of the analysis (this is not finalised yet)
+- folder: 'pilot_study': this includes all data, wrangling code and analysis code for the pilot study
+  - doc: 'pilot_analysis_plan.rmd': The pre-registered analysis script that was developed using the pilot data
+  - doc: 'pilot_datawrangle.rmd': data wrangling code used for the pilot data
+  - doc: 'pilot_to_main_code_changes.md': text document summarising any changes between the pilot data analysis and main analysis that arose from corrections being made to the survey
+- folder: 'rawdata_with_wranglecode': this includes raw anonymised data and all corresponding wrangling code
+  - doc: 'data_quality_check.rmd': explains data quality checks that were made on the non-anonymised data set to form the anonymised 'main_data.csv'
+  - doc: 'main_datawrangle.rmd': includes data quality exclusions at the beginning, if data 'main_data.csv' is downloaded this script should run smoothly to create the 'processed_data.csv' (which can also be accessed from folder 'processed_data')
+  - doc: 'sample_details.rmd': code underlying the sample breakdown in folder 'details_of_sample'
+- folder 'figures': this will eventually have all figures used in the final paper versions and supplementary materials; also includes histograms of all the uni-variate distributions for inspection and (eventually) assumptions of key models
+- folder 'tables': this will eventually have all tables for the main and supplementary materials of the final papers
 
+*This project is in the stage of being written into a manuscript, final scripts may be updated*
 
 Please feel free to get in contact at hcgordon1@sheffield.ac.uk if you have any questions!
