@@ -778,9 +778,9 @@ rm(list=setdiff(ls(), c("data", "imprint_df", "training_df")))
 
 </details>
 
-This document relies on the correct data frames having been formed from the code above which can be viewed under 'details'. This information is also stored in a seperate R Markdown document 'datawrangling_code.Rmd'. The correct data frames used in the following analyses are called: imprint_df and training_df. Some hypotheses are tested using the former dataframe, which includes four rows for each participant to capture the repeated measures part of the experiment. Some hypotheses are tested using the latter dataframe, which includes only one row per participant.
+This document relies on the correct data frames having been formed from the code above which can be viewed under 'details'. This information is also stored in a separate R Markdown document 'datawrangling_code.Rmd'. The correct data frames used in the following analyses are called: imprint_df and training_df. Almost all hypotheses are tested using the former dataframe, which includes four rows for each participant to capture the repeated measures part of the experiment. Some hypotheses are tested using the latter dataframe, which includes only one row per participant.
 
-## Research questions
+## Pre-registered research questions
 
 Research theme 1: the effect of viewing a digital imprint on subsequent evaluations
 
@@ -792,7 +792,7 @@ Research theme 2: the effect of being informed about the purpose of digital impr
 - **Research question 3**: How does being informed about the purpose of digital imprints affect citizens' perceptions of the trustworthiness of such material?
 - **Research question 4**: How does being informed about the purpose of a digital imprint affect citizen views on the sufficiency of current regulatory oversight?
 
-### Hypotheses
+### Pre-registered hypotheses
 
 Research question 1:
 
@@ -812,6 +812,22 @@ Research question 3:
 Research question 4: 
 
 - H4: Those who are informed about the purpose of an imprint are more likely to perceive campaign laws as sufficient compared to those who are not informed about the purpose.
+
+### A note about the RQ and hypotheses final paper
+
+In the final analysis, some changes were made to the original presentation of the research questions, the order of the hypotheses (please note that in content these stayed the same), and the analysis script that was pre-registered (the original can be viewed in the 'pilot_study' folder of the github repository).
+
+These changes did not reflect any substantial altering of the theorised associations between our variables, as reflected in how all hypotheses stayed the same. However, as we had a broad research focus and 8 key outcome measures, we refined our presentation of our research justification to more clearly situate it within the research; for example, by clearly justifying our focus on third-party campaigners. Additionally, we altered the order of our hypotheses to ensure the most efficient reporting of the outcomes. This documents represents the final version of all statistical models. 
+
+If you would like to run the original models for comparison please follow these steps:
+
+- Locate the 'rawdata_with_wranglecode' folder in the repo
+- Ensure you have 'main_data.csv' saved in the same R project
+- Download the 'preregistered_analysis_code.rmd' script
+- Check you have packages installed 
+- Knit the script for 'preregistered_analysis_code.rmd'
+
+*This should create an html document that can be scrolled through to view the original models, including all the assumptions for them (under the 'details' tabs)*
 
 ### R packages: visualisation and analysis
 
