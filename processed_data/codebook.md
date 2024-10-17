@@ -36,7 +36,7 @@ Thinking about the image you’ve just seen, to what extent do you agree or disa
 Response options: Strongly disagree (1) – Strongly agree (7)
 
 The post feels like an advertisement
-The post promotes a particular viewpoint 
+This post promotes a particular viewpoint
 The post is an advertisement
 The post is intended to influence your opinion
 
@@ -57,7 +57,7 @@ Respondents indicate agreement with each statement separately.
 The material had a political goal 
 The material contained enough information to know who placed the material 
 I am not sure who is behind the material 
-I do not feel able to make an informed judgement about who is behind this material
+I can make an informed judgement about who is behind this material
 
 ---
 

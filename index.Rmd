@@ -815,11 +815,11 @@ Research question 4:
 
 ### A note about the RQ and hypotheses final paper
 
-In the final analysis, some changes were made to the original presentation of the research questions, the order of the hypotheses (please note that in content these stayed the same), and the analysis script that was pre-registered (the original can be viewed in the 'rawdata_with_wranglecode' folder of the github repository).
+In the final analysis, some changes were made to the order of the hypotheses (please note that in content these stayed the same), and the analysis script that was pre-registered (the original can be viewed in the 'rawdata_with_wranglecode' folder of the github repository).
 
-These changes did not reflect any substantial altering of the theorised associations between our variables, as reflected in how all hypotheses stayed the same. However, as we had a broad research focus and 8 key outcome measures, we refined our presentation of our research justification to more clearly situate it within existing research; for example, by clearly justifying our focus on third-party campaigners. Additionally, we altered the order of presentation for our hypotheses to ensure the most efficient reporting of the outcomes. This document includes the final version of all statistical models. 
+These changes did not reflect any substantial altering of the theorised associations between our variables, as reflected in how all hypotheses stayed the same. However, we altered the order of presentation for our hypotheses to ensure the most efficient reporting of the outcomes. This document includes the final version of all statistical models reported in the main paper.
 
-If you would like to run the original models for comparison please follow these steps:
+If you would like to run the original pre-registered analysis script for comparison please follow these steps:
 
 - Locate the 'rawdata_with_wranglecode' folder in the repo
 - Ensure you have 'main_data.csv' saved in the same R project
@@ -1137,6 +1137,106 @@ Below shows how regulation knowledge was distributed across the whole sample, wi
   coord_flip()
 
 p + theme(aspect.ratio = 1/1.7) 
+
+```
+
+Below shows where in the ranking participants tended to rate 'voters' when asked who the digital imprint information was most useful for. 
+
+```{r, echo=FALSE, fig.align='center'}
+
+#set as factor
+
+training_df$useful_rank_1 <- as.factor(training_df$useful_rank_1)
+
+training_df$useful_rank_1 <- factor(training_df$useful_rank_1, levels = c("6", "5", "4", "3", "2", "1"))
+
+# Step 1: Calculate the counts and percentages
+useful_plot <- training_df %>%
+  group_by(Training.condition, useful_rank_1) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+
+#create plot
+
+p <- ggplot(useful_plot, aes(x = useful_rank_1, y = Count, fill = as.factor(Training.condition))) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_dodge(width = 0.6), 
+           vjust = 0.5,
+           hjust = -0.1,
+            size = 3) +  # Add percentage labels above bars
+  scale_fill_brewer(palette = "Paired",
+                    labels = c("No Training", "Trained")) +
+  labs(title = "Voters, to understand who is responsible for the campaign material",
+       x = "Rank Position",  
+       y = "Count") +   
+  facet_wrap(~ Training.condition, 
+             labeller = labeller(Training.condition = c('0' = 'No Training', '1' = 'Training'))) +  # Facet labels
+  theme_minimal() +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        title = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10)) +
+  coord_flip() +
+  expand_limits(y = max(useful_plot$Count) * 1.1) +
+  theme(aspect.ratio = 1/1.75)
+
+p
+
+#ggsave(filename = "figures/useful_rank_voter.png", plot = p, width = 8, height = 4, dpi = 300)
+
+```
+
+The Electoral Commission
+
+```{r, echo=FALSE, fig.align='center'}
+
+#set as factor
+
+training_df$useful_rank_2 <- as.factor(training_df$useful_rank_2)
+
+training_df$useful_rank_2 <- factor(training_df$useful_rank_2, levels = c("6", "5", "4", "3", "2", "1"))
+
+# Step 1: Calculate the counts and percentages
+useful_plot_EC <- training_df %>%
+  group_by(Training.condition, useful_rank_2) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+
+#create plot
+
+p <- ggplot(useful_plot_EC, aes(x = useful_rank_2, y = Count, fill = as.factor(Training.condition))) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_dodge(width = 0.6), 
+           vjust = 0.5,
+           hjust = -0.1,
+            size = 3) +  # Add percentage labels above bars
+  scale_fill_brewer(palette = "Paired",
+                    labels = c("No Training", "Trained")) +
+  labs(title = "The Electoral Commission, to provide oversight of the democratic process",
+       x = "Rank Position",  
+       y = "Count") +   
+  facet_wrap(~ Training.condition, 
+             labeller = labeller(Training.condition = c('0' = 'No Training', '1' = 'Training'))) +  # Facet labels
+  theme_minimal() +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        title = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10)) +
+  coord_flip() +
+  expand_limits(y = max(useful_plot$Count) * 1.1) +
+  theme(aspect.ratio = 1/1.75)
+
+p
+
+#ggsave(filename = "figures/useful_rank_ec.png", plot = p, width = 8, height = 4, dpi = 300)
 
 ```
 
