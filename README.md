@@ -4,13 +4,31 @@ Welcome! This repository includes all the details for a survey experiment design
 
 As we are a team based in the UK, this experiment specifically tests the 'digital imprint', a form of disclosure from UK legislation of which the Electoral Commission is responsible for providing guidance and setting out the practical details of the policy. 
 
-Overall, this study fits within a growing body of research seeking to understand how the public use such information to make judgements about who is behind campaign material, whether they are a credible source, and so forth.
+Overall, this study fits within a growing body of research seeking to understand how the public use such information to make judgements about who is behind campaign material, whether they are a trustworthy source, and so forth. These studies aim to inform  evidenced based policy about what role digital campaign disclosures can reasonably be expected to play in countering democratic threats faced by citizens and regulators in online environments. 
+
+Overall, this study supports that on a population level, digital disclosures have a small effect on how informed citizens are about the source of campaign content, but this does not further impact evaluations of trustworthiness. Future research testing mediating mechanisms and individual differences in reactions may help illuminate the association between disclosures and perceptions of trust.
 
 ## Details of repository
 
-Below contains details of how this repository is structured:
+- doc: 'index.rmd': this is the main analysis document of the project, that includes all the code for the final version of the analysis included in the main paper (this is not finalised yet)
 
-- doc: 'index.rmd': this is the main analysis document of the project, that includes all the code for the final version of the analysis (this is not finalised yet)
+### Where are the raw and processed data files?
+
+### Where is the description of the dataset?
+
+### Where can I find details about the sample?
+
+### Did the hypotheses tested match those in the preregistration?
+
+### Did the final analysis models match those in the preregistration?
+
+### How do I run the pre-registered analysis script for comparison?
+
+### What data was collected that might be useful for a secondary analysis?
+
+
+### Extra repository details
+
 - folder: 'pilot_study': this includes all data, wrangling code and analysis code for the pilot study
   - doc: 'pilot_analysis_plan.rmd': The pre-registered analysis script that was developed using the pilot data
   - doc: 'pilot_datawrangle.rmd': data wrangling code used for the pilot data
