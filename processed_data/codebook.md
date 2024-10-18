@@ -40,7 +40,7 @@ _PK2_value_ - This post promotes a particular viewpoint
 _PK3_value_ - The post is an advertisement
 _PK4_value_ - The post is intended to influence your opinion
 
-*In the original dataset, this measure appears as PK_1_1, PK_1_2, PK_1_3 etc depending on which advertisement was viewed, the columns here are those in 'imprint_df' which reformats the dataset structure into long form*
+*In the original dataset, this measure appears as PK_1_1, PK_1_2, PK_1_3 etc depending on which advertisement was viewed, the columns here are those in 'imprint_df' which reformats the dataset structure into long form with 4 rows for each pps*
 
 _PK_ - averaged score
 
@@ -61,7 +61,7 @@ _informed2_value_ - The material contained enough information to know who placed
 _informed3_value_ - I am not sure who is behind the material 
 _informed4_value_ - I can make an informed judgement about who is behind this material
 
-_informed_ - averaged score
+_informed_ - averaged score of informed2, 3 and 4
 
 ---
 
@@ -89,21 +89,27 @@ Some of the campaign material contained information about its source. For exampl
 
 [example of digital imprint shown]
 
-Out of the individual Facebook posts you viewed, how many items do you recall containing transparency information about the source of the material?
+_recall_num_ - Out of the individual Facebook posts you viewed, how many items do you recall containing transparency information about the source of the material?
 
 0, 1, 2, 3, 4, Not sure
+
+_recall_correct_ - new column created to specify if the participant identified that they viewed 2 digital imprints. 2 = 'correct', any other value = 'incorrect'                
 
 ---
 
 Which of the following groups do you remember being responsible for posting the material you were shown (you may select none or multiple)?
-Future First  
-The People’s movement  
-Voice for the People  
-Common Sense Collective  
-Breaking Barriers Alliance 
-Speak Freely Inc.  
-Campaign For a Better Britain 
-All Together   
+_FF_ - Future First  
+_TPM_ - The People’s movement  
+_VFP_ - Voice for the People  
+_CSC_ - Common Sense Collective (correct)
+_BBA_ - Breaking Barriers Alliance (correct)
+_SFI_ - Speak Freely Inc. (correct)
+_CBB_ -Campaign For a Better Britain (correct)
+_AT_ - All Together   
+
+*The options were presented in a random order to participants*
+
+_recall_ - a variable created in the analysis script that matches if the campaigner name was recalled to the advert viewed in 'imprint_df', so each participant has 4 rows with the recall of the specific name corresponding to the advert row
 
 ---
 
@@ -111,16 +117,17 @@ Of the following actors, who do you think will find this information most useful
 
 Please rank, with the actor who will find it most useful at the top.
 
-______ Voters, to understand who is responsible for the campaign material 
-______ The electoral commission, to provide oversight of the democratic process 
-______ Academic researchers, to study political activity
-______ Journalists, to investigate political campaigns 
-______ The police, to ensure that electoral law is followed
-______ Other (please state) 
+_useful_rank_1_ - Voters, to understand who is responsible for the campaign material 
+_useful_rank_2_ -The electoral commission, to provide oversight of the democratic process 
+_useful_rank_3_ - Academic researchers, to study political activity
+_useful_rank_4_ - Journalists, to investigate political campaigns 
+_useful_rank_5_ - The police, to ensure that electoral law is followed
+_useful_rank_6_ - Other (please state) 
+_useful_rank_6_TEXT_ - *text for 'please state'*
 
 ---
 
-Countries vary in how much they regulate political advertising by campaigns and other organisations during elections. Thinking about the current controls on political advertising in the UK, which of the following statements do you think is most accurate?
+_reg_know_ - Countries vary in how much they regulate political advertising by campaigns and other organisations during elections. Thinking about the current controls on political advertising in the UK, which of the following statements do you think is most accurate?
 
 - All political advertising (whether on television, radio, in newspapers or the internet) is subject to the same rules set by the UK government  
 - All political advertising is regulated by rules set by the UK government, but there is one set of rules for advertising on television and radio and a different set of rules for advertising on the internet and social media  
@@ -135,10 +142,10 @@ Response options: Strongly disagree (1) – Strongly agree (7)
 
 Respondents indicate agreement with each statement separately.
 
-I feel confident that I can find the truth about political issues
- If I wanted to, I could figure out the facts behind most political disputes
-It is possible to figure out the truth about political issues
-There are objective facts behind most political disputes, and if you try hard enough you can find them
+_EPE_1_ - I feel confident that I can find the truth about political issues
+_EPE_2_ - If I wanted to, I could figure out the facts behind most political disputes
+_EPE_3_ - It is possible to figure out the truth about political issues
+_EPE_4_ - There are objective facts behind most political disputes, and if you try hard enough you can find them
 
 ---
 
@@ -146,19 +153,25 @@ Please indicate the extent to which you agree or disagree with the following sta
 
 Response options: Response options: Strongly disagree (1) – Strongly agree (7)
 
-Politicians often put the country above their own interests
-Most politicians are honest and truthful 
-In general, politicians are open about their decisions 
-I monitor the behaviour of politicians closely 
-I check whether politicians have met their electoral promises 
-I double-check what politicians say in case of misleading information  
-Politicians are only interested in getting and maintaining power 
-Politicians pretend to care more about people than they really do  
-Our political leaders are prepared to lie to us whenever it suits their purposes
+_general_confidence_1_ - Politicians often put the country above their own interests
+_general_confidence_2_ - Most politicians are honest and truthful 
+_general_confidence_3_ - In general, politicians are open about their decisions 
+_general_confidence_4_ - I monitor the behaviour of politicians closely 
+_general_confidence_5_ - I check whether politicians have met their electoral promises 
+_general_confidence_6_ - I double-check what politicians say in case of misleading information  
+_general_confidence_7_ - Politicians are only interested in getting and maintaining power 
+_general_confidence_8_ - Politicians pretend to care more about people than they really do  
+_general_confidence_9_ - Our political leaders are prepared to lie to us whenever it suits their purposes
+
+*The options were presented in a random order to participants*
+
+political_trust = items 1-3 (Jennings et al., 2022)
+political_mistrust = items 4-6 (Weinberg, 2023)
+political_cynicism = items 7-9 (TO ADD)
 
 ---
 
-How interested would you say you are in politics? 
+_political_interest_ - How interested would you say you are in politics? 
 Not at all interested  
 Not very interested  
 Fairly interested  
@@ -167,7 +180,7 @@ Don’t know
 
 ---
 
-How much do government officials care what people like you think?
+_external_efficacy_ - How much do government officials care what people like you think?
 A great deal   
 A lot   
 A moderate amount     
@@ -176,7 +189,7 @@ Not at all
 
 ---
 
-How much can people like you affect what the government does?
+_internal_efficacy_ - How much can people like you affect what the government does?
 A great deal   
 A lot   
 A moderate amount    
@@ -185,7 +198,7 @@ Not at all
 
 ---
 
-On an average day, how much time do you spend using the internet for news about politics and current affairs?
+_SM_use_ - On an average day, how much time do you spend using the internet for news about politics and current affairs?
 None, No time at all   
 Less than 1/2 hour   
 1/2 hour to 1 hour   
@@ -195,16 +208,12 @@ Don’t know
 
 ---
 
-How often do you use the following social media site, if at all?
+_SM_frequency_ - How often do you use the following social media site, if at all?
 
 Response options: More than five times a day (1), 2-5 times a day (2), once a day (3), once every couple of days (4), once a week (5), less than once a week (6), never (7)
 
 Facebook 
 
+---
 
-## Mean-averaged items 
-
-
-
-
-## Other transformations
+Demographic variable names should be clear.
