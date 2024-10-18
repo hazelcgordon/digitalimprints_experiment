@@ -35,16 +35,18 @@ Thinking about the image you’ve just seen, to what extent do you agree or disa
 
 Response options: Strongly disagree (1) – Strongly agree (7)
 
-The post feels like an advertisement
-This post promotes a particular viewpoint
-The post is an advertisement
-The post is intended to influence your opinion
+_PK1_value_ - The post feels like an advertisement
+_PK2_value_ - This post promotes a particular viewpoint
+_PK3_value_ - The post is an advertisement
+_PK4_value_ - The post is intended to influence your opinion
+
+*In the original dataset, this measure appears as PK_1_1, PK_1_2, PK_1_3 etc depending on which advertisement was viewed, the columns here are those in 'imprint_df' which reformats the dataset structure into long form*
+
+_PK_ - averaged score
 
 ---
 
-To what extent do you agree or disagree with the message promoted by the post?
-
-Response options: Strongly disagree (1) – Strongly agree (7)
+_agree_value_ - To what extent do you agree or disagree with the message promoted by the post? Response options: Strongly disagree (1) – Strongly agree (7)
 
 ---
 
@@ -54,10 +56,12 @@ Response options: Strongly disagree (1) – Strongly agree (7)
 
 Respondents indicate agreement with each statement separately.
 
-The material had a political goal 
-The material contained enough information to know who placed the material 
-I am not sure who is behind the material 
-I can make an informed judgement about who is behind this material
+_PG_value_ - The material had a political goal 
+_informed2_value_ - The material contained enough information to know who placed the material 
+_informed3_value_ - I am not sure who is behind the material 
+_informed4_value_ - I can make an informed judgement about who is behind this material
+
+_informed_ - averaged score
 
 ---
 
@@ -65,21 +69,19 @@ Please circle the number in between each pair of words which represents how you 
 
 The following sets of words are shown, and participants choose a number between 1 and 7 for each set.
 
-Inaccurate (1) – accurate (7)
+_accurate_value_ - Inaccurate (1) – accurate (7)
 
-Untrustworthy (1) – trustworthy (7)
+_trustworthy_value_ - Untrustworthy (1) – trustworthy (7)
 
-Unbelievable (1) - believable (7)
+_believable_value_ - Unbelievable (1) - believable (7)
 
-Opinionated (1) – factual (7)
+_factual_value_ - Opinionated (1) – factual (7)
 
 ---
 
 The posts you just viewed were all examples of political campaign material. 
 
-To what extent do you think there are sufficient laws to regulate online campaign material in the UK?
-
-Response option: Insufficient (1) – Sufficient (7)
+_election_reg_ To what extent do you think there are sufficient laws to regulate online campaign material in the UK? Response option: Insufficient (1) – Sufficient (7)
 
 ---
 
