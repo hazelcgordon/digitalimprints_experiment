@@ -1248,8 +1248,6 @@ The following models include random intercepts for participant ID and advert. Th
 
 Random intercepts are also incorporated for the adverts themselves, acknowledging that each advert might also elicit different baseline levels of political goal recognition and persuasion knowledge due to their content or nature. Capturing this variability reflects the reality that some adverts, by their design, are more politically charged or persuasive than others, thereby starting from different evaluative baselines.
 
-The choice to prioritise random intercepts but not random slopes in this model is driven by a key assumption: while there is expected variability in baseline evaluations (both at the level of individual participants and individual adverts), the influence exerted by the presence of digital imprints on the outcome measures is expected to be uniform across participants and adverts.
-
 - Outcome: PG_value, numerical 1-7
 - Predictor: version, binary factor
 - Random effects: id and advert
@@ -1484,7 +1482,6 @@ ggplot(mean_predicted_values, aes(x = version, y = mean_predicted_PK, group = ad
 
 ```
 
-
 #### Model outcomes: table
 
 ```{r, echo=FALSE, fig.align='center'}
@@ -1583,11 +1580,6 @@ ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
   xlab("Theoretical Quantiles") +
   ylab("Sample Quantiles") +
   ggtitle("QQ Plot of Random Effects for 'advert'")
-
-#checking with a test
-
-shapiro.test(id_effects)
-shapiro.test(advert_effects)
 
 ```
 
