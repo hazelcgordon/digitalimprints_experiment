@@ -31,14 +31,21 @@ You are about to see four social media posts. Please review each example and ans
 
 ### Raw variables names
 
+- **id** - participant id
+- **advert** - advert viewed
+- **version** - 0 = no imprint viewed, 1 = imprint viewed
+- **Training.condition** - 0 = no training, 1 = trained
+
+---
+
 Thinking about the image you’ve just seen, to what extent do you agree or disagree with the following statements.
 
 Response options: Strongly disagree (1) – Strongly agree (7)
 
-**PK1_value** - The post feels like an advertisement;
-**PK2_value** - This post promotes a particular viewpoint;
-**PK3_value** - The post is an advertisement;
-**PK4_value** - The post is intended to influence your opinion
+- **PK1_value** - The post feels like an advertisement
+- **PK2_value** - This post promotes a particular viewpoint
+- **PK3_value** - The post is an advertisement
+- **PK4_value** - The post is intended to influence your opinion
 
 *In the original dataset, this measure appears as PK_1_1, PK_1_2, PK_1_3 etc depending on which advertisement was viewed, the columns here are those in 'imprint_df' which reformats the dataset structure into long form with 4 rows for each pps*
 
@@ -56,10 +63,10 @@ Response options: Strongly disagree (1) – Strongly agree (7)
 
 Respondents indicate agreement with each statement separately.
 
-**PG_value** - The material had a political goal; 
-**informed2_value** - The material contained enough information to know who placed the material; 
-**informed3_value** - I am not sure who is behind the material; 
-**informed4_value** - I can make an informed judgement about who is behind this material
+- **PG_value** - The material had a political goal; 
+- **informed2_value** - The material contained enough information to know who placed the material; 
+- **informed3_value** - I am not sure who is behind the material; 
+- **informed4_value** - I can make an informed judgement about who is behind this material
 
 **informed** - averaged score of informed2, 3 and 4
 
@@ -69,13 +76,10 @@ Please circle the number in between each pair of words which represents how you 
 
 The following sets of words are shown, and participants choose a number between 1 and 7 for each set.
 
-**accurate_value** - Inaccurate (1) – accurate (7)
-
-**trustworthy_value** - Untrustworthy (1) – trustworthy (7)
-
-**believable_value** - Unbelievable (1) - believable (7)
-
-**factual_value** - Opinionated (1) – factual (7)
+- **accurate_value** - Inaccurate (1) – accurate (7)
+- **trustworthy_value** - Untrustworthy (1) – trustworthy (7)
+- **believable_value** - Unbelievable (1) - believable (7)
+- **factual_value** - Opinionated (1) – factual (7)
 
 ---
 
@@ -98,14 +102,15 @@ Some of the campaign material contained information about its source. For exampl
 ---
 
 Which of the following groups do you remember being responsible for posting the material you were shown (you may select none or multiple)?
-**FF** - Future First;  
-**TPM** - The People’s movement;  
-**VFP** - Voice for the People;  
-**CSC** - Common Sense Collective (correct);
-**BBA** - Breaking Barriers Alliance (correct);
-**SFI** - Speak Freely Inc. (correct);
-**CBB** -Campaign For a Better Britain (correct);
-**AT** - All Together   
+
+- **FF** - Future First;  
+- **TPM** - The People’s movement;  
+- **VFP** - Voice for the People;  
+- **CSC** - Common Sense Collective (correct);
+- **BBA** - Breaking Barriers Alliance (correct);
+- **SFI** - Speak Freely Inc. (correct);
+- **CBB** -Campaign For a Better Britain (correct);
+- **AT** - All Together   
 
 *The options were presented in a random order to participants*
 
@@ -117,13 +122,13 @@ Of the following actors, who do you think will find this information most useful
 
 Please rank, with the actor who will find it most useful at the top.
 
-**useful_rank_1** - Voters, to understand who is responsible for the campaign material; 
-**useful_rank_2** -The electoral commission, to provide oversight of the democratic process; 
-**useful_rank_3** - Academic researchers, to study political activity;
-**useful_rank_4** - Journalists, to investigate political campaigns; 
-**useful_rank_5** - The police, to ensure that electoral law is followed;
-**useful_rank_6** - Other (please state); 
-**useful_rank_6_TEXT** - *text for 'please state'*
+- **useful_rank_1** - Voters, to understand who is responsible for the campaign material; 
+- **useful_rank_2** -The electoral commission, to provide oversight of the democratic process; 
+- **useful_rank_3** - Academic researchers, to study political activity;
+- **useful_rank_4** - Journalists, to investigate political campaigns; 
+- **useful_rank_5** - The police, to ensure that electoral law is followed;
+- **useful_rank_6** - Other (please state); 
+- **useful_rank_6_TEXT** - *text for 'please state'*
 
 ---
 
@@ -142,10 +147,10 @@ Response options: Strongly disagree (1) – Strongly agree (7)
 
 Respondents indicate agreement with each statement separately.
 
-**EPE_1** - I feel confident that I can find the truth about political issues;
-**EPE_2** - If I wanted to, I could figure out the facts behind most political disputes;
-**EPE_3** - It is possible to figure out the truth about political issues;
-**EPE_4** - There are objective facts behind most political disputes, and if you try hard enough you can find them
+- **EPE_1** - I feel confident that I can find the truth about political issues;
+- **EPE_2** - If I wanted to, I could figure out the facts behind most political disputes;
+- **EPE_3** - It is possible to figure out the truth about political issues;
+- **EPE_4** - There are objective facts behind most political disputes, and if you try hard enough you can find them
 
 ---
 
@@ -153,15 +158,15 @@ Please indicate the extent to which you agree or disagree with the following sta
 
 Response options: Response options: Strongly disagree (1) – Strongly agree (7)
 
-**general_confidence_1** - Politicians often put the country above their own interests;
-**general_confidence_2** - Most politicians are honest and truthful; 
-**general_confidence_3** - In general, politicians are open about their decisions;
-**general_confidence_4** - I monitor the behaviour of politicians closely; 
-**general_confidence_5** - I check whether politicians have met their electoral promises; 
-**general_confidence_6** - I double-check what politicians say in case of misleading information;  
-**general_confidence_7** - Politicians are only interested in getting and maintaining power; 
-**general_confidence_8** - Politicians pretend to care more about people than they really do;  
-**general_confidence_9** - Our political leaders are prepared to lie to us whenever it suits their purposes
+- **general_confidence_1** - Politicians often put the country above their own interests;
+- **general_confidence_2** - Most politicians are honest and truthful; 
+- **general_confidence_3** - In general, politicians are open about their decisions;
+- **general_confidence_4** - I monitor the behaviour of politicians closely; 
+- **general_confidence_5** - I check whether politicians have met their electoral promises; 
+- **general_confidence_6** - I double-check what politicians say in case of misleading information;  
+- **general_confidence_7** - Politicians are only interested in getting and maintaining power; 
+- **general_confidence_8** - Politicians pretend to care more about people than they really do;  
+- **general_confidence_9** - Our political leaders are prepared to lie to us whenever it suits their purposes
 
 *The options were presented in a random order to participants*
 
