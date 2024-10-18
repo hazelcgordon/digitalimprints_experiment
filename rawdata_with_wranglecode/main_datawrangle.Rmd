@@ -169,7 +169,7 @@ convert_to_factor <- function(df, cols) {
 }
 
 data <- data %>%
-  convert_to_factor(c("Advert.1", "Advert.2", "Advert.3", "Advert.4", "SM_frequency_1", "SM_use", "Training.condition", "reg_know", "SM_use", "partyID", "gender", "education"))
+  convert_to_factor(c("Advert.1", "Advert.2", "Advert.3", "Advert.4", "SM_frequency_1", "SM_use", "Training.condition", "reg_know", "partyID", "gender", "education"))
 
 #Setting reference groups for: reg_know, SM_use, SM_frequency, gender, education
 
@@ -182,7 +182,7 @@ data <- data %>%
 
 #Social media use
   
-use_response_order <- c("None, No time at all ", "Less than 1/2 hour ", "1/2 hour to 1 hour ", "1 to 2 hours ",  "Not sure")
+use_response_order <- c("None, No time at all ", "Less than 1/2 hour ", "1/2 hour to 1 hour ", "1 to 2 hours ", "More than 2 hours ", "Not sure")
 
 data <- data %>%
   mutate(across(SM_use, ~factor(.x, levels = use_response_order)))
@@ -214,6 +214,12 @@ ed_response_order <- c("Postgraduate (e.g. M.Sc, Ph.D)", "Undergraduate Universi
 data <- data %>%
   mutate(across(education, ~factor(.x, levels = ed_response_order)))
 
+#partyID, Labour as reference
+
+party_response_order <- c("Labour", "Conservative", "Liberal Democrat", "Reform UK", "United Kingdom Independence Party (UKIP)", "Green Party", "Scottish National Party (SNP)", "Plaid Cymru", "Sinn Féin", "Democratic Unionist Party", "Alliance Party", "Other, please specify___________", "I do not identify with any political party")
+
+data <- data %>%
+  mutate(across(partyID, ~factor(.x, levels = party_response_order)))
 
 ```
 
