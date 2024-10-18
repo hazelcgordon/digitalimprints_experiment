@@ -1,14 +1,13 @@
 ---
-title: "sampling"
-output: html_document
-date: "`r Sys.Date()`"
+title: "Sample of Survey"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, include=FALSE}
 
 library(tidyverse)
 library(scales)
@@ -16,7 +15,7 @@ library(gt)
 
 ```
 
-This requires the main_datawrangle.Rmd document to have been run.
+To run this code yourself, please run the main data wrangling document beforehand for the most up to date variables.
 
 ## Who was recruited for this study?
 
@@ -136,37 +135,30 @@ sample <- sample %>%
     TRUE ~ Variable  # Keep the original value if no match
   ))
 
-gt_table <- sample %>%
-  gt(groupname_col = "Variable") %>%
-  tab_header(
-    title = "Sample Summary",
-    subtitle = "Breakdown of sample by gender, education, ethnicity, UK partisan affiliation, age, \nand political interest"
+# Create table
+kable_table <- sample %>%
+  select(Variable, Category, Frequency, Percentage) %>%
+  kable(format = "html", align = "c", col.names = c("Demographic", "Category", "Frequency", "Percentage (%)")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),  
+    full_width = F,  # Don't stretch the table to full width
+    font_size = 12  # Set font size
   ) %>%
-  cols_label(
-    Variable = "",
-    Category = "",
-    Frequency = "Frequency",
-    Percentage = "Percentage (%)"
+  column_spec(3:4, width = "7em") %>%  
+  column_spec(1:2, width = "10em") %>% 
+  collapse_rows(columns = 1, valign = "top") %>%
+  add_header_above(c(" " = 2, "Sample Summary" = 2)) %>%  
+  footnote(
+    general = "Breakdown of sample by gender, education, ethnicity, UK partisan affiliation, age, and political interest",
+    general_title = "Note:",
+    footnote_as_chunk = TRUE
   ) %>%
-  fmt_number(
-    columns = c(Percentage),
-    decimals = 1
-  ) %>%
-    tab_options(
-    table.font.size = 12,
-    heading.title.font.size = 14,
-    heading.subtitle.font.size = 12,
-    heading.align = "left",  # Left-align the title and subtitle
-    table.width = px(600)  # Increase table width
-  ) %>%
-  cols_align(
-    align = "center",
-    columns = c(Frequency, Percentage)
-  )
+  row_spec(0, bold = TRUE)  
 
-gt_table
+#save_kable(kable_table, "sample_summary.html")
 
-#gtsave(gt_table, "details_of_sample/sample_summary.png", zoom = 2, vwidth = 700)
+# Use webshot to convert the HTML table to PNG
+#webshot("sample_summary.html", "sample_summary.png")
 
 ```
 
