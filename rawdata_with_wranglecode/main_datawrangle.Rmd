@@ -139,6 +139,8 @@ reverse_code <- function(response) {
   return(as.numeric(names(mapping)[match(response, mapping)]))
 }
 
+#NOTE ERROR IN PREREGISTERED SURVEY THAT INCLUDED THE WRONG VERSION OF 'INFORMED, ITEM 4' (in the final survey, this item was reworded to be positvely phrased, so only informed, item 3 required reverse scoring)
+
 data <- data %>%
   mutate(across(c(informed_1_3, informed_1imprint_3, informed_2_3, informed_2imprint_3, informed_3_3, informed_3imprint_3, informed_4_3, informed_4imprint_3), ~reverse_code(.x)))
 
