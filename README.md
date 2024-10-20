@@ -10,22 +10,51 @@ Overall, this study supports that on a population level, digital disclosures hav
 
 ## Details of repository
 
-- doc: 'index.rmd': this is the main analysis document of the project, that includes all the code for the final version of the analysis included in the main paper (this is not finalised yet)
+The final analysis can be viewed under 'index.rmd', the main analysis document of the project, that includes all the code for the final version of the analysis included in the main paper *(this is not finalised yet)*
 
 ### Where are the raw and processed data files?
 
+The raw datafile can be viewed in the /rawdata_with_wranglecode folder under 'main_data.csv'. 
+
+Running the 'main_datawrangle.Rmd' script will reformat the data into long form with 4 rows for each participant; if the repo has been cloned, this should run smoothly. Please alter the 'read.csv' part of the code if the data and script have been downloaded separately. This script will generate 3 dataframes, 'data' (unprocessed), 'imprint_df' (4 row per participant) and 'training_df' (1 row per participant, excludes repeated measures variables). Most tests will use imprint_df.
+
+The processed datasets can also be downloaded directly from within /processed_data. Please check variables are converted to the correct format (e.g., factor levels set) before analyses are run. 
+
 ### Where is the description of the dataset?
+
+The full survey and variable codebook can be found in /processed_data. Corresponding variable names are in bold.
 
 ### Where can I find details about the sample?
 
+A table summarising the main demographics of the sample can be found in /details_of_sample. Other sample attributes of interest that can be checked separately include: social media use, frequency of facebook use. 
+
+### What data quality checks were conducted?
+
+Please see document 'data_quality_check.rmd' in /rawdata_with_wranglecode which explains data quality checks that were made on the non-anonymised data set to form the anonymised 'main_data.csv'.
+
 ### Did the hypotheses tested match those in the preregistration?
+
+Yes, only the pre-registered hypotheses are tested in the paper.
 
 ### Did the final analysis models match those in the preregistration?
 
+The final models are very similar to those preregistered, however some of the final models differed due to considerations that came to light during the data analysis process, such as which models structure provided the best fit. Full justification of any changes can be viewed in the document 'supplementary materials.Rmd' which can be knitted to create an easy to navigate html document. 
+
+*This document will be added very soon*
+
 ### How do I run the pre-registered analysis script for comparison?
+
+The pre-registered analysis code can be run in full with the script 'preregistered_analysis_code.Rmd'. If the repo has been cloned, this script can be knitted to generate a formatted html document through which the initial version of the results can be browsed through. 
 
 ### What data was collected that might be useful for a secondary analysis?
 
+This dataset collected many variables that would be suitable for secondary analysis:
+
+- Political trust, mistrust and cynicism
+- Political internal and external efficacy
+- Key political demographics e.g., UK political party support, support for democracy
+
+Please see the codebook under /processed_data for the full survey.
 
 ### Extra repository details
 
@@ -33,10 +62,6 @@ Overall, this study supports that on a population level, digital disclosures hav
   - doc: 'pilot_analysis_plan.rmd': The pre-registered analysis script that was developed using the pilot data
   - doc: 'pilot_datawrangle.rmd': data wrangling code used for the pilot data
   - doc: 'pilot_to_main_code_changes.md': text document summarising any changes between the pilot data analysis and main analysis that arose from corrections being made to the survey
-- folder: 'rawdata_with_wranglecode': this includes raw anonymised data and all corresponding wrangling code
-  - doc: 'data_quality_check.rmd': explains data quality checks that were made on the non-anonymised data set to form the anonymised 'main_data.csv'
-  - doc: 'main_datawrangle.rmd': includes data quality exclusions at the beginning, if data 'main_data.csv' is downloaded this script should run smoothly to create the 'processed_data.csv' (which can also be accessed from folder 'processed_data')
-  - doc: 'sample_details.rmd': code underlying the sample breakdown in folder 'details_of_sample'
 - folder 'figures': this will eventually have all figures used in the final paper versions and supplementary materials; also includes histograms of all the uni-variate distributions for inspection and (eventually) assumptions of key models
 - folder 'tables': this will eventually have all tables for the main and supplementary materials of the final papers
 
