@@ -813,7 +813,7 @@ Research question 4:
 
 - H4: Those who are informed about the purpose of an imprint are more likely to perceive campaign laws as sufficient compared to those who are not informed about the purpose.
 
-### A note about the RQ and hypotheses final paper
+### A note about the hypotheses and analysis in final paper
 
 In the final analysis, some changes were made to the order of the hypotheses (please note that in content these stayed the same), and the analysis script that was pre-registered (the original can be viewed in the 'rawdata_with_wranglecode' folder of the github repository).
 
@@ -851,12 +851,13 @@ library(rlang)
 library(psych)
 library(lattice)
 library(afex)
+library(stats)
 
 ```
 
 </details>
 
-Above are the R packages used for analysis and visualisation.
+Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. The package 'MASS' is used in the final stage of the script. This is loaded later to avoid package conflicts with tidyverse/dplyr.
 
 ### Scale reliability
 
@@ -895,8 +896,6 @@ kable(alpha_results, col.names = c("Scale", "Alpha"), caption = "Cronbach's Alph
 ### Sample
 
 A representative sample option was used when collecting data from Prolific, matching UK census data for age, gender and ethnicity. The following table shows the make up of the sample for these demographics as well as education and political party identification, after exclusions.
-
-
 
 ### Univariate statistics
 
@@ -1585,13 +1584,11 @@ ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
 
 </details>
 
-### Hypothesis 1b, outcome: recall of names
+### Hypothesis 2a and 2b, outcome: recall of names
 
 Did viewing a digital imprint with a piece of campaign material increase participants memory of the campaigner name?
 
 To test this, recall of the campaigner name can be tested with a logistical regression model to see if viewing the imprint boosted recall of the name. This also uses a newly created dataframe: recall_transform. 
-
-The first model tests a simple logistic regression, however the presence of nested data, particularly for advert-level variations, is accounted for in a second mixed-effects model which introduces random intercepts for the  four adverts, to account for how some names were more memorable than others. As can be seen by comparison of the two models, the mixed model is a slightly better fit for the data (assessment can be viewed under 'assumptions'), and the effect remains significant.
 
 Correct names:
 
@@ -2104,7 +2101,7 @@ composite_plot
 
 </details>
 
-### Hypotheses 1c and 2b: outcome: perceived informedness
+### Hypotheses 3a and 3b: outcome: perceived informedness
 
 Hypothesis 1c:
 
@@ -2132,7 +2129,7 @@ Were trained participants more likely to correctly identify that they were less 
 
 #model variants in the results section
 
-informed_1 <- lmer(informed ~ version*Training.condition + (1|id) + (1|advert), data = imprint_df)
+informed_1 <- lmer(informed ~ Training.condition*version + (1|id) + (1|advert), data = imprint_df)
 
 informed_2 <- lmer(informed ~ version*Training.condition + (1|id) + (version|advert), data = imprint_df)
 
@@ -2215,27 +2212,49 @@ pi_plot +
 
 preds <- ggpredict(informed_1, terms = c("Training.condition", "version"))
 
-plot(preds) +
-  ylim(1, 7) +
-  labs(title = "Interaction Effect",
-       x = "Training condition",
-       y = "Predicted perceived informedness",
-       color = "Digital imprint \n included")
+#zoomed interaction
 
-# Plot the interaction
-informed_interaction <- plot(preds) +
+# Set the dodge width for side-by-side positioning
+dodge_width <- 0.3  # Adjust this value as needed to control spacing
+
+zoom_interaction <- ggplot(preds, aes(x = x, y = predicted, color = group)) +
+  geom_point(position = position_dodge(width = dodge_width), size = 3) +  
+  geom_line(aes(group = group), position = position_dodge(width = dodge_width), size = 1) +  # Lines with dodge
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = dodge_width), width = 0.1) +  # Error bars with dodge
   scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
-                     labels = c("Digital imprint Absent", "Digital Imprint Viewed")) +
+                     labels = c("Digital Imprint Absent", "Digital Imprint Viewed")) +
   labs(x = "Training Condition", 
-       y = "Predicted score (95% CI)",
+       y = "Predicted Score (95% CI)",
        title = "") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 12))
+
+zoom_interaction
+
+#full context graph
+
+informed_interaction <- ggplot(preds, aes(x = x, y = predicted, color = group)) +
+  geom_point(position = position_dodge(width = dodge_width), size = 2) +  
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = dodge_width), width = 0.1) +  # Error bars with dodge
+  scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
+                     labels = c("Digital Imprint Absent", "Digital Imprint Viewed")) +
+  labs(x = "Training Condition", 
+       y = "Predicted Score (95% CI)",
+       title = "") +
+  theme_minimal() +
   ylim(1, 7) +
-  theme(legend.title = element_blank()
-  )
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 12))
 
 informed_interaction
 
-#ggsave(filename = "figures/informed_interaction.png", plot = informed_interaction, width = 6, height = 4, dpi = 300)
+ggsave(filename = "figures/informed_interaction.png", plot = informed_interaction, width = 6, height = 4, dpi = 300)
+ggsave(filename = "figures/zoom_interaction.png", plot = zoom_interaction, width = 6, height = 4, dpi = 300)
 
 ```
 
@@ -2390,276 +2409,11 @@ ad_in_plot +
 
 </details>
 
-#### Supplementary analysis: digital imprint inclusion and percieved trustworthiness
-
-<details>
-
-Did the inclusion of a digital imprint influence how trustworthy and credible the posts were perceived to be?
-
-Outcome: accurate/believable/factual/trustworthy, numerical scale 1-7
-Fixed effects: Version of post viewed, binary
-Random effects: id and advert
-Control: agreement with post
-
-The models below are created through a function
-
-- model_accurate_value <- lmer(accurate_value ~ version + agree + (1|id) + (1|advert), data = imprint_df)
-- model_believable_value <- lmer(believable_value ~ version + agree + (1|id) + (1|advert), data = imprint_df)
-- model_factual_value <- lmer(factual_value ~ version + agree + (1|id) + (1|advert), data = imprint_df)
-- model_trustworthy_value <- lmer(trustworthy_value ~ version + agree + (1|id) + (1|advert), data = imprint_df)
-
-```{r, include=FALSE}
-
-#function to create the models for each of the four outcomes, agree as a control
-
-fitMixedModel <- function(outcome, data) {
-  # Construct the formula string dynamically
-  formulaString <- paste(outcome, "~ version + agree_value + (1|id) + (1|advert)", sep = " ")
-  # Convert the string to a formula
-  modelFormula <- as.formula(formulaString)
-  # Fit the model
-  model <- lmer(modelFormula, data = data)
-  # Construct a name for the model variable based on the outcome
-  modelName <- paste("model_", outcome, sep = "")
-  # Assign the model to the global environment
-  assign(modelName, model, envir = .GlobalEnv)
-}
-
-outcomes <- c("accurate_value", "believable_value", "factual_value", "trustworthy_value")
-
-lapply(outcomes, fitMixedModel, data = imprint_df)
-
-```
-
-```{r, echo=FALSE}
-
-#Cannot create a function for this that doesn't output the tables as a new tab in a browser, rather than embedded in the knitted document. Also cannot centralise the tables in the knitted document. This will do for now.
-
-accuracy_tab <- tab_model(model_accurate_value,
-          pred.labels = c("Intercept", "Digital Imprint included", "Agreement"),
-          dv.labels = "Percieved accuracy")
-
-believable_tab <- tab_model(model_believable_value,
-          pred.labels = c("Intercept", "Digital Imprint included", "Agreement"),
-          dv.labels = "Percieved believability")
-
-factual_tab <- tab_model(model_factual_value,
-          pred.labels = c("Intercept", "Digital Imprint included", "Agreement"),
-          dv.labels = "Percieved factualness")
-
-trustworthy_tab <- tab_model(model_trustworthy_value,
-          pred.labels = c("Intercept", "Digital Imprint included", "Agreement"),
-          dv.labels = "Percieved trustworthiness")
-
-accuracy_tab 
-believable_tab 
-factual_tab 
-trustworthy_tab
-  
-```
-
-```{r, echo=FALSE, fig.align='center'}
-
-long_trust_measures <- pivot_longer(imprint_df, 
-                                cols = c(accurate_value, believable_value, 
-                                         factual_value, trustworthy_value), 
-                                names_to = "outcome", 
-                                values_to = "value")
-
-ggplot(long_trust_measures, aes(x = outcome, y = value, fill = version)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(title = "Outcomes by Version",
-       x = "outcome",
-       y = "Distrubution of response") +
-  theme(axis.text.x = element_text(hjust = 1))
-
-```
-
-```{r, echo=FALSE, fig.align='center'}
-
-pred_accurate <- ggpredict(model_accurate_value, terms = "version")
-pred_believable <- ggpredict(model_believable_value, terms = "version")
-pred_factual <- ggpredict(model_factual_value, terms = "version")
-pred_trustworthy <- ggpredict(model_trustworthy_value, terms = "version")
-
-ggplot(pred_accurate, aes(x = x, y = predicted)) +
-  geom_point() +  
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
-  labs(x = "Version of advert", y = "Predicted accuracy value (95% CI)", 
-       title = "Predicted effect of viewing an imprint on perceived accurateness of post") +
-  ylim(1, 7) +
-  theme_minimal()
-
-ggplot(pred_believable, aes(x = x, y = predicted)) +
-  geom_point() +  
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
-  labs(x = "Version of advert", y = "Predicted believable value (95% CI)", 
-       title = "Predicted effect of viewing an imprint on perceived believability of post") +
-  ylim(1, 7) +
-  theme_minimal()
-
-ggplot(pred_factual, aes(x = x, y = predicted)) +
-  geom_point() +  
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
-  labs(x = "Version of advert", y = "Predicted factual value (95% CI)", 
-       title = "Predicted effect of viewing an imprint on perceived factualness of post") +
-  ylim(1, 7) +
-  theme_minimal()
-
-ggplot(pred_trustworthy, aes(x = x, y = predicted)) +
-  geom_point() +  
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
-  labs(x = "Version of advert", y = "Predicted trustworthy value (95% CI)", 
-       title = "Predicted effect of viewing an imprint on perceived trustworthiness of post") +
-  ylim(1, 7) +
-  theme_minimal()
-
-```
-
-Checking assumptions for trustworthy:
-
-```{r, echo=FALSE}
-
-# Check residuals for normality
-qqnorm(resid(model_trustworthy_value)) 
-qqline(resid(model_trustworthy_value))
-
-# Variance of residuals
-df_residuals <- data.frame(fitted = fitted(model_trustworthy_value), residuals = resid(model_trustworthy_value))
-
-ggplot(df_residuals, aes(x = fitted, y = residuals)) +
-  geom_point() +
-  geom_hline(yintercept = 0, col = "red") +
-  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs Fitted Values")
-
-#checking for normal distribution of random effects
-
-ran_ef <- ranef(model_trustworthy_value, condVar = TRUE)
-
-id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
-advert_effects <- ran_ef$advert[,1] #and for advert
-
-ggplot(data.frame(effect = id_effects), aes(sample = effect)) +
-  geom_qq() +
-  geom_qq_line() +
-  xlab("Theoretical Quantiles") +
-  ylab("Sample Quantiles") +
-  ggtitle("QQ Plot of Random Effects for 'id'")
-
-ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
-  geom_qq() +
-  geom_qq_line() +
-  xlab("Theoretical Quantiles") +
-  ylab("Sample Quantiles") +
-  ggtitle("QQ Plot of Random Effects for 'advert'")
-
-#checking with a test
-
-shapiro.test(id_effects)
-shapiro.test(advert_effects)
-
-```
-
-</details>
-
-### Hypothesis 2a: outcome: correct name recall
-
-Did participants recall a higher number of correct campaigner names when they are trained to pay attention to the source?
-
-- Outcome: name_correct, numerical 0-3
-- Predictor: Training.condition
-
-#### Model
-
-```{r}
-
-correct_name <- lm(name_correct ~ Training.condition, data = training_df)
-
-```
-
-#### Table
-
-```{r, echo=FALSE, fig.align='center'}
-
-correct_name_tab <- tab_model(correct_name, 
-                           pred.labels = c("Intercept", "Trained"),
-                           dv.labels = "Number of names correctly recalled")
-
-correct_name_tab
-
-```
-
-#### Plotting: Raw data
-
-```{r, echo=FALSE, fig.align='center'}
-
-ggplot(training_df, aes(x = factor(Training.condition), y = name_correct)) +
-  geom_jitter(width = 0.2, alpha = 0.5) +
-  geom_boxplot(width = 0.2) +
-  labs(x = "Training condition", y = "Correct name recall", title = "Distribution of correct name recall by training condition") +
-  theme_minimal()
-
-```
-
-#### Plotting: Model predictions
-
-```{r, echo=FALSE, fig.align='center'}
-
-# Generate predicted values using the ggeffects package
-correct_name_preds <- ggpredict(correct_name, terms = "Training.condition")
-
-ggplot(correct_name_preds, aes(x = x, y = predicted)) +
-  geom_point() +  
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
-  labs(x = "Training condition", y = "Predicted correct name recall (95% CI)", 
-       title = "Predicted effect of training condition on correct name recall") +
-  ylim(0, 3) +
-  theme_minimal()
-
-```
-
-#### Assumptions
-
-<details>
-
-As there is only 1 binary predictor, there is no need to assess linearity as it only assumes a difference in total means for each group. Assessed is:
-
-- Normality of residuals
-- Equal variance of residuals
-
-```{r, echo=FALSE}
-
-#overall distribution of residuals
-
-hist(residuals(correct_name), main = "Histogram of Residuals", xlab = "Residuals")
-
-#within group distribution of residuals
-
-par(mfrow = c(1, 2))  # Set up the plotting area to display two plots side by side
-for (level in unique(training_df$Training.condition)) {
-  qqnorm(residuals(correct_name)[training_df$Training.condition == level], 
-         main = paste("QQ Plot of Residuals for Level", level))
-  qqline(residuals(correct_name)[training_df$Training.condition == level])
-}
-par(mfrow = c(1, 1))  
-
-#variance of residuals
-
-plot(fitted(correct_name), residuals(correct_name), 
-     xlab = "Fitted Values", ylab = "Residuals", 
-     main = "Residuals vs. Fitted Values")
-abline(h = 0, col = "red")
-
-```
-
-</details>
-
-### Hypothesis 3: outcome: trustworthiness
+### Hypothesis 4a and 4b: outcome: trustworthiness
 
 Did those informed about the purpose of imprints use their absence/presence to evaluate the trustworthiness and credibility of the posts? 
 
-- Outcome: accurate/factual/believable/trustworthy, numerical 1-7
+- Outcome: credible/factual, numerical 1-7
 - fixed effect: training condition x version of imprint viewed (interaction effect)
 - random effects: id and advert
 - control: agreement with post
@@ -2671,6 +2425,12 @@ Four models are created through the use of a function for each of the outcome va
 model <- lmer(outcome ~ Training.condition + version + agree_value + Training.condition*version + (1|id) + (1|advert))
 
 ```{r, echo=FALSE}
+
+#mean scoring credibility
+
+imprint_df <- imprint_df %>%
+  rowwise() %>%
+  mutate(credible = mean(c(trustworthy_value, believable_value, accurate_value)))
 
 #below is a function specifying the same model for each of the outcome variables
 
@@ -2686,7 +2446,7 @@ fit_trust_model <- function(data, outcomes) {
   return(models)
 }
 
-outcomes <- c("trustworthy_value", "believable_value", "accurate_value", "factual_value")
+outcomes <- c("credible", "factual_value")
 models <- fit_trust_model(imprint_df, outcomes)
 
 for (outcome in names(models)) {
@@ -2699,17 +2459,22 @@ for (outcome in names(models)) {
 
 ```{r, echo=FALSE}
 
-tab_model(model_trustworthy_value, file = "tables/trustworthy.html",  
+tab_trust <- tab_model(model_credible, pred.labels = c("Intercept", "Training", "Digital Imprint included", "Agreement", "Training*imprint"), dv.labels = "Perceived credibility")
+
+tab_trust
+summary(model_credible)
+
+tab_fact <- tab_model(model_factual_value, pred.labels = c("Intercept", "Training", "Digital Imprint included", "Agreement", "Training*imprint"), dv.labels = "Perceived fact versus opinion")
+
+tab_fact
+
+
+tab_model(model_credible, file = "tables/trustworthy.html",  
 pred.labels = c("Intercept", "Training", "Digital Imprint included", "Agreement", "Training*imprint"), dv.labels = "Perceived trustworthiness")
 
-tab_model(model_believable_value, file = "tables/believe.html",  
+tab_model(model_factual_value, file = "tables/believe.html",  
 pred.labels = c("Intercept", "Training", "Digital Imprint included", "Agreement", "Training*imprint"), dv.labels = "Perceived believability")
 
-tab_model(model_accurate_value, file = "tables/accurate.html",  
-pred.labels = c("Intercept", "Training", "Digital Imprint included", "Agreement", "Training*imprint"), dv.labels = "Perceived accuracy")
-
-tab_model(model_factual_value, file = "tables/factual.html",  
-pred.labels = c("Intercept", "Training", "Digital Imprint included", "Agreement", "Training*imprint"), dv.labels = "Perceived fact versus opinion")
 
 ```
 
@@ -2785,8 +2550,6 @@ Each model is checked for the following assumptions:
 - normality of residuals
 - equal variance of residuals
 - normal distribution of residuals for the random effects
-
-As can be seen, the assumptions are not met for many of the models, creating a need for robustness checks. Additionally, in the supplementary check for the effect of digital imprints on trustworthiness, the effect of imprints is small but positive and significant across the outcomes: trustworthiness, accuracy and believability. This significance is not maintained in the models tested for hypothesis 3 that include the training condition and an interaction effect. Comparisons of model fit between these models suggest they are similar, but this stresses the need for caution when interpreting these models and additional checks.
 
 Trustworthy model:
 
@@ -2979,22 +2742,45 @@ Assumptions of normality and equal variance of residuals are violated, due to th
 
 #### Model
 
-```{r}
+```{r include=FALSE}
+
+library(MASS)
+
+#main model
 
 regulation_model <- lm(election_reg ~ Training.condition, data = training_df)
+
+#check for robustness with M estimator weights
+
+regulation_robust <- rlm(election_reg ~ Training.condition, data = training_df)
+
+#check for controls
+
+regulation_control <- lm(election_reg ~ Training.condition + external_efficacy + internal_efficacy + SM_use + partyID + age + gender + education + Ethnicity.simplified + political_interest + political_trust + political_cynicism + political_mistrust + EPE_mean, data = training_df)
+
+best_model <- step(regulation_control)
+
+tab_model(best_model, show.se = TRUE)
 
 ```
 
 #### Table
 
+The top table shows the original outcome. The bottom table shows a robust regression model, weights generated using an M estimator with the 'rlm' function in the MASS package (loaded at this point in the script). A robustness check is included due to the violation of assumptions seen in the original model.
+
 ```{r, echo=FALSE}
 
 regulation_tab <- tab_model(regulation_model, 
                            pred.labels = c("Intercept", "Trained"),
-                           dv.labels = "Perceived sufficiency of advertising 
-                           regulation")
+                           dv.labels = "Perceived sufficiency of advertising regulation", show.se = TRUE)
 
 regulation_tab
+
+robust_tab <- tab_model(regulation_robust, 
+                           pred.labels = c("Intercept", "Trained"),
+                           dv.labels = "Perceived sufficiency of advertising regulation (robust)", show.se = TRUE)
+
+robust_tab
 
 ```
 
@@ -3037,23 +2823,92 @@ ggplot(regulation_preds, aes(x = x, y = predicted)) +
 
 hist(residuals(regulation_model), main = "Histogram of Residuals", xlab = "Residuals")
 
-#within group distribution of residuals
-
-par(mfrow = c(1, 2))  # Set up the plotting area to display two plots side by side
-for (level in unique(training_df$Training.condition)) {
-  qqnorm(residuals(regulation_model)[training_df$Training.condition == level], 
-         main = paste("QQ Plot of Residuals for Level", level))
-  qqline(residuals(regulation_model)[training_df$Training.condition == level])
-}
-par(mfrow = c(1, 1))  
-
-#variance of residuals
-
-plot(fitted(regulation_model), residuals(regulation_model), 
-     xlab = "Fitted Values", ylab = "Residuals", 
-     main = "Residuals vs. Fitted Values")
-abline(h = 0, col = "red")
+plot(regulation_model, which = 1)
+plot(regulation_model, which = 2)
+plot(regulation_model, which = 3)
+plot(regulation_model, which = 4)
+plot(regulation_model, which = 5)
 
 ```
 
 </details>
+
+### Exploratory mediation model
+
+```{r}
+
+library(lavaan)
+library(lavaanPlot)
+
+# One-factor CFA model
+cfa <- '
+  credible_factor =~ trustworthy_value + accurate_value + believable_value
+'
+
+factor_analysis <- cfa(cfa, data = imprint_df)
+
+summary(factor_analysis, fit.measures = TRUE, standardized = TRUE)
+
+mediate_PK <- '
+  # Latent variable for credibility
+  credibility =~ trustworthy_value + accurate_value + believable_value
+  
+  # Direct effect
+  credibility ~ c*version
+  
+  # Indirect effect (via PK)
+  PK ~ a*version
+  credibility ~ b*PK
+  
+  # Indirect effect
+  indirect := a*b
+  
+  # Total effect
+  total := c + (a*b)
+'
+
+fit <- sem(mediate_PK, data = imprint_df)
+
+summary(fit, standardized = TRUE, fit.measures = TRUE)
+
+#plot
+
+lavaanPlot(model = fit, 
+           coefs = TRUE,           # Show coefficients
+           stand = TRUE,           # Standardized coefficients
+           stars = "regressions")
+
+#perceived informedness
+
+mediate_informed <- '
+  # Latent variable for credibility
+  credibility =~ trustworthy_value + accurate_value + believable_value
+  
+  # Direct effect
+  credibility ~ c*version
+  
+  # Indirect effect (via PK)
+  informed ~ a*version
+  credibility ~ b*informed
+  
+  # Indirect effect
+  indirect := a*b
+  
+  # Total effect
+  total := c + (a*b)
+'
+
+fit <- sem(mediate_informed, data = imprint_df)
+
+summary(fit, standardized = TRUE, fit.measures = TRUE)
+
+#plot
+
+lavaanPlot(model = fit, 
+           coefs = TRUE,           # Show coefficients
+           stand = TRUE,           # Standardized coefficients
+           stars = "regressions")
+
+
+```
+
