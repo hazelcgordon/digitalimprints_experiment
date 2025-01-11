@@ -1,0 +1,114 @@
+---
+title: "Supplementary Test Code"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document contains the code for the advert-level variations, which is included as a supplementary test to the main analysis. 
+
+
+## Persuasion knowledge: interaction version*training model 
+
+Showing the different levels of increase in persuasion knowledge across the different adverts, testing if there is an interaction effect?
+
+```{r include=FALSE}
+
+#plotting the random effects interaction for ainform_pk3
+
+imprint_df$predicted_PK <- predict(ainform_pk3, re.form = NULL)
+
+mean_predicted_values <- imprint_df %>%
+  group_by(version, advert) %>%
+  summarise(mean_predicted_PK = mean(predicted_PK))
+
+ggplot(mean_predicted_values, aes(x = version, y = mean_predicted_PK, group = advert, color = advert)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~ advert) +
+  labs(x = "Version Viewed (0 = no digital imprint)",
+       y = "Mean Predicted PPI") +
+  theme_minimal()
+
+```
+
+Below explores if the effect of the imprint on persuasion knowledge is impacted by the advert type.
+
+```{r}
+
+model <- lmer(PK ~ version * advert + (1 | id), data = imprint_df)
+
+tab_model(model)
+
+# Get predicted values
+predicted_PK <- predict(model, newdata = imprint_df)
+
+# Add predicted values to the data frame
+imprint_df1 <- cbind(imprint_df, predicted_PK)
+
+with(imprint_df1, interaction.plot(advert, version, predicted_PK,
+                                  type = "b", pch = c(1, 16), 
+                                  col = c("red", "blue"), 
+                                  main = "Interaction Plot", 
+                                  xlab = "Advert", 
+                                  ylab = "Predicted PK"))
+
+
+```
+
+#### Supplementary: name recall with 
+
+The effect of version is not found to be robust, when applying false discovery rate p-value corrections, suggesting it may vary between materials. This is checked below with a model that includes an interaction term between version and advert.
+
+```{r, echo=FALSE}
+
+#supplementary model 
+
+recall_materials <- glmer(recall ~ version*Training.condition + version*advert + 
+                           (1|id), 
+               data = recall_df, 
+               family = binomial(link = "logit"),
+               control = glmerControl(optimizer = "bobyqa", 
+                                            optCtrl = list(maxfun = 
+                                                             1e5)))
+
+#Bonferroni corrected multi-pair wise comparisons between adverts
+library(emmeans)
+
+# Get estimated marginal means (EMMs) for the interaction between version and advert
+emm <- emmeans(recall_materials, ~ version|advert)
+
+# Perform pairwise comparisons and get odds ratios
+pairwise_or <- contrast(emm, "revpairwise", type = "response", adjust = "bonferroni")
+
+#manual calculation of confidence intervals
+
+# Extract the log odds ratios and standard errors
+log_or_se <- as.data.frame(summary(pairwise_or))
+
+# Calculate confidence intervals
+log_or_se$lower.CL <- exp(log(log_or_se$odds.ratio) - 1.96 * log_or_se$SE)
+log_or_se$upper.CL <- exp(log(log_or_se$odds.ratio) + 1.96 * log_or_se$SE)
+
+# View the results with confidence intervals
+log_or_se
+
+#visualising the effect
+# Get predicted values
+predicted_recall <- predict(recall_materials, newdata = imprint_df)
+
+# Add predicted values to the data frame
+imprint_df1 <- cbind(imprint_df, predicted_recall)
+
+with(imprint_df1, interaction.plot(advert, version, predicted_recall,
+                                  type = "b", pch = c(1, 16), 
+                                  col = c("red", "blue"), 
+                                  main = "Interaction Plot", 
+                                  xlab = "Advert", 
+                                  ylab = "Predicted Recall"))
+
+```
+
