@@ -897,6 +897,8 @@ kable(alpha_results, col.names = c("Scale", "Alpha"), caption = "Cronbach's Alph
 
 A representative sample option was used when collecting data from Prolific, matching UK census data for age, gender and ethnicity. The following table shows the make up of the sample for these demographics as well as education and political party identification, after exclusions.
 
+![Sample Breakdown](details_of_sample/sample_summary.png)
+
 ### Univariate statistics
 
 Below provides descriptive statistics for the key predictor and outcome variables. The first table lists the continuous measures in the repeated measures part of the experiment, and the second shows confidence in regulation, which was only measured once. As can be seen, perceived political goal was heavily skewed. This suggested the political nature of each post was easy for participants to infer. 
