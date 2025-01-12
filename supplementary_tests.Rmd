@@ -112,3 +112,95 @@ with(imprint_df1, interaction.plot(advert, version, predicted_recall,
 
 ```
 
+#### Supplementary analysis: advert level variations on informedness
+
+Is there evidence to suggest that it is the aesthetic style and content of an advert itself that increases informedness about a source, and do digital imprints play a role in informing citizens above and beyond this?
+
+Claims tested:
+
+- Informedness about the source will be increased by the presence of a digital imprint, even when accounting for variations in campaign material content and format.
+
+To further explore this, we can conduct an analysis comparing the effect of viewing each campaign post with and without the inclusion of a digital imprint on persuasion knowledge, political goal recognition, and perceived informedness.
+
+```{r advert level variations in PK, echo=FALSE, fig.align='center'}
+
+# Calculate summary statistics
+summary_ad_PK <- imprint_df %>%
+  group_by(advert, version) %>%
+  summarise(n = n(),
+            mean_pk = mean(PK, na.rm = TRUE),
+            sd_pk = sd(PK, na.rm = TRUE),
+            se_pk = sd_pk / sqrt(n),
+            ci_upper = mean_pk + 1.96 * se_pk,
+            ci_lower = mean_pk - 1.96 * se_pk) %>%
+  ungroup()
+
+kable(summary_ad_PK, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved persuasion knowledge") %>%
+  kable_classic(full_width = F, position = "center", html_font = "Cambria")
+
+#Plotting the raw data
+
+ad_PK_plot <- ggplot(data = imprint_df, aes(x = advert, y = PK, fill = version)) 
+
+ad_PK_plot + 
+  geom_point(aes(color = version), position = position_jitterdodge(), alpha = 0.5) +
+  geom_boxplot(width = 0.2) +
+  theme_minimal()
+
+```
+
+```{r advert level variations in PG, echo=FALSE, fig.align='center'}
+
+# Calculate summary statistics
+summary_ad_PG <- imprint_df %>%
+  group_by(advert, version) %>%
+  summarise(n = n(),
+            mean_pg = mean(PG_value, na.rm = TRUE),
+            sd_pg = sd(PG_value, na.rm = TRUE),
+            se_pg = sd_pg / sqrt(n),
+            ci_upper = mean_pg + 1.96 * se_pg,
+            ci_lower = mean_pg - 1.96 * se_pg) %>%
+  ungroup()
+
+kable(summary_ad_PG, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved political goal") %>%
+  kable_classic(full_width = F, position = "center", html_font = "Cambria")
+
+#Plotting the raw data
+
+ad_PG_plot <- ggplot(data = imprint_df, aes(x = advert, y = PG_value, fill = version)) 
+
+ad_PG_plot + 
+  geom_point(aes(color = version), position = position_jitterdodge(), alpha = 0.5) +
+  geom_boxplot(width = 0.2) +
+  theme_minimal()
+
+```
+
+```{r advert level variations in informed, echo=FALSE, fig.align='center'}
+
+# Calculate summary statistics
+summary_ad_in <- imprint_df %>%
+  group_by(advert, version) %>%
+  summarise(n = n(),
+            mean_in = mean(informed, na.rm = TRUE),
+            sd_in = sd(informed, na.rm = TRUE),
+            se_in = sd_in / sqrt(n),
+            ci_upper = mean_in + 1.96 * se_in,
+            ci_lower = mean_in - 1.96 * se_in) %>%
+  ungroup()
+
+kable(summary_ad_in, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved informedness") %>%
+  kable_classic(full_width = F, position = "center", html_font = "Cambria")
+
+#Plotting the raw data
+
+ad_in_plot <- ggplot(data = imprint_df, aes(x = advert, y = informed, fill = version))
+
+ad_in_plot + 
+  geom_point(aes(color = version), position = position_jitterdodge(), alpha = 0.5) +
+  geom_boxplot(width = 0.2) +
+  theme_minimal()
+
+```
+
+
