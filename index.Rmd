@@ -25,7 +25,7 @@ body {
 }
 </style>
 
-This document includes all information referenced in the main paper. We show full details of the process of analysis and the steps taken to ensure the statistical viability of those reported, documenting what the pre-registered models were and providing justification in cases where the final models differed. Please see section ‘variations of statistical models tested’ for more details. 
+This document includes all information referenced in the main paper. We show full details of the process of analysis and the steps taken to ensure the statistical viability of those reported, documenting what the pre-registered models were and providing justification in cases where the final models differed. 
 
 As a supplementary analysis, we also show how differences between the adverts impacted key outcome variables. However, keep in mind the mixed-effect models used tested if the main effects were generalisable beyond specific stimuli-level differences. The advert-level results are provided here for context but do not affect the generalisability or statistical robustness of our primary conclusions. 
 
@@ -1339,9 +1339,7 @@ Theoretically feasible model structures:
 - Material:version intercepts model: Outcome ~ 1 + version + training + (1|participant id) + (1|material:version)
 - Fixed-effect interaction: Outcome ~ 1 + version*training + (1|participant id) + (1|material)
 
-In this case, the final chosen model included random intercepts for participant ID and advert. As can be seen below in the model variation comparisons, including random slopes worsened the fit of the model when evaluated using AIC values. This strongly implies adding model complexity in the form of random slopes does not aid a valid estimation of effects in this case, likely due to the small effects of digital imprint version.
-
-The 'fit is singular' warning message below means the model failed to converge, and in this case relates to model structure 2.
+Although structure 2 achieved the lowest AIC, structure 1 was including random intercepts for participant ID and advert was chosen. This is because the model failed to converge as indicated by the ‘fit is singular’ warning message which was generated in response to structure 2. This indicated the model was unable to estimate the effect of the random slopes, likely due to the small size of the effect overall. As can be seen below in the model variation comparisons, the more complex structures 3 and 4 worsened the fit of the model when evaluated using AIC values. Model structure 1 was therefore deemed the best fit for the data, balancing model complexity with statistical power.
 
 ```{r political goal actual informedness, echo=FALSE}
 
@@ -1480,8 +1478,6 @@ ggplot(preds, aes(x = x, y = predicted)) +
 
 #### Model assumptions
 
-<details>
-
 The assumptions checked below are as follows:
 
 - normality of residuals
@@ -1535,13 +1531,11 @@ shapiro.test(advert_effects)
 
 ```
 
-</details>
-
 ### Outcome: Persuasion Knowledge {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was trying to persuade them of a certain viewpoint?*
 
-#### Plotting raw data
+#### Plot: raw data
 
 ```{r, echo=FALSE, warning=FALSE}
 
@@ -1566,9 +1560,33 @@ imprint_df %>%
 
 ```
 
-#### Checking for model fit metrics using AIC values
+#### Pre-registration Deviations
 
-```{r persuasion knowledge}
+Pre-registered model:
+
+- model 2 <- lmer(persuasion knowledge ~ imprint viewed + (1|id) + (1|advert))
+Reported model:
+
+- model 2 <- lmer(persuasion knowledge ~ version + training + (1|participant id) + (1|material))
+
+Main deviation:
+
+- The effect of training was included as, although not central to the hypotheses, it was recognised the training may have also influenced perceptions of the outcome that needed to be accounted for to ensure the effect of version was not overestimated
+
+#### Model fit metrics: AIC
+
+As with the political goal outcome, the same set of model structures were tested for their AIC values.
+
+Theoretically feasible model structures:
+
+- Random intercepts: Outcome ~ 1 + version + training + (1|participant id) + (1|material)
+- Maximal random slopes model: Outcome ~ 1 + version + training + (1|participant id) + (1 + version|material)
+- Material:version intercepts model: Outcome ~ 1 + version + training + (1|participant id) + (1|material:version)
+- Fixed-effect interaction: Outcome ~ 1 + version*training + (1|participant id) + (1|material)
+ 
+In this case, the final chosen model was structure 1. As can be seen below in the model variation comparisons, increasing model complexity with random slopes or the inclusion of interaction effects worsened the fit of the model when evaluated using AIC values. This strongly implies adding model complexity in the form of random slopes does not aid a valid estimation of effects in this case, likely due to the small effects of digital imprint version.
+
+```{r persuasion knowledge, echo=FALSE}
 
 #ainform_pk <- lmer(PK ~ version + (1|id) + (1|advert), data = imprint_df)
 
@@ -1614,53 +1632,131 @@ aic_table %>%
 
 ```
 
-#### Model outcomes: table
-
-- Outcome: PK, numerical 1-7
-- Predictor: version, binary factor
-- Random effects: id and advert
+#### Model outcomes: Table
 
 ```{r, echo=FALSE, fig.align='center'}
 
-#Visualising the findings: table
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(ainform_pk1, effects = "fixed", conf.int = TRUE)
 
-inform_pk_tab <- tab_model(ainform_pk1, 
-                           pred.labels = c("Intercept", "Digital Imprint 
-                                           included", "Training Condition"),
-                           dv.labels = "Persuasion knowledge")
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(ainform_pk1))
 
-inform_pk_tab
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(ainform_pk1)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ²", "Marginal R²", "Conditional R²"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "version1" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition1" ~ "Training\n (ref: no training)",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: persuasion knowledge",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Also can use sequential model building techniques to infer effect sizes:
+
+#mixed(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
 
 ```
 
-#### False Discovery Rate Checks for p-value
+#### False Discovery Rate
 
-```{r echo=FALSE}
+As this model found support for rejecting the null regarding the effect of both viewing a digital imprint and receiving training on persuasion knowledge, the p-values were adjusted to account for the multiple comparisons made during this analysis and ensure the robustness of the findings.
 
-#compare models to see if fit it improved
-
-# checking against a reduced model
-
-mixed(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
+```{r echo=FALSE, fig.align='center'}
 
 #p-values adjusted for false discovery rate
 
 # Extract p-values from the summary of the model
 p_vals <- summary(ainform_pk1)$coefficients[, "Pr(>|t|)"]
 
-#view original p-values
-
-p_vals
-
 # Adjust p-values using the Benjamini-Hochberg method for FDR
 adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
 
-# View the adjusted p-values
-adjusted_p_vals
+# Create a data frame with original and adjusted p-values
+p_val_table <- data.frame(
+  Fixed_Effect = rownames(summary(ainform_pk1)$coefficients), 
+  Original_P_Value = p_vals,
+  Adjusted_P_Value = adjusted_p_vals,
+  row.names = NULL
+)
+
+# Round the p-values for better readability
+p_val_table <- p_val_table %>%
+  mutate(
+    Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
+  )
+
+# Rename row terms
+p_val_table <- p_val_table %>%
+  mutate(Fixed_Effect = case_when(
+    Fixed_Effect == "version1" ~ "Digital imprint viewed\n (ref: not viewed)",
+    Fixed_Effect == "Training.condition1" ~ "Training\n (ref: no training)",
+    TRUE ~ Fixed_Effect
+  ))
+
+# Format table
+
+p_val_table %>%
+  dplyr::select(Fixed_Effect, Original_P_Value, Adjusted_P_Value) %>%
+  kable(
+    caption = "Original and Adjusted p-Values for Fixed Effects",
+    col.names = c("Fixed Effect", "Original P-Value", "Adjusted P-Value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
 
 ```
 
-#### Plotting: Model Predictions
+#### Plot: Model Predictions
 
 ```{r, echo=FALSE, fig.align='center'}
 
@@ -1680,8 +1776,6 @@ ggplot(preds, aes(x = x, y = predicted)) +
 ```
 
 #### Model Assumptions
-
-<details>
 
 The assumptions checked below are as follows:
 
@@ -1726,13 +1820,20 @@ ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
 
 ```
 
-</details>
-
 ## Hypothesis 2a and 2b
 
-### Outcome: Recall of Names
+### Outcome: Recall of Names {.tabset}
 
 *Did viewing a digital imprint with a piece of campaign material increase participants memory of the campaigner name?*
+
+To test this, recall of the campaigner name can be tested with a logistical regression model to see if viewing the imprint boosted recall of the name. This also uses a newly created dataframe: recall_transform. 
+
+Correct names:
+
+-   Advert 1: Common sense collective: CSC 
+-   Advert 2: Breaking barriers alliance: BBA
+-   Advert 3: Speak freely inc: SFI
+-   Advert 4: Campaign for a better Britain: CBB
 
 ```{r, include=FALSE}
 
@@ -1761,21 +1862,7 @@ recall_df <- recall_df %>%
 
 ```
 
-#### Plotting: raw data
-
-```{r, include=FALSE, fig.align='center'}
-
-ggplot(recall_df, aes(x = factor(version, labels = c("no imprint", "imprint")), fill = factor(recall, levels = c(0, 1), labels = c("no recall", "correct recall")))) +
-  geom_bar(position = "stack", width = 0.2) +
-  labs(y = "Count", x = "Version viewed", fill = "") +
-  theme_minimal() +
-  scale_fill_brewer(palette = "Pastel1", labels = c("no recall", "correct recall")) +
-  scale_x_discrete(name = "Version viewed", labels = c(`0` = "no imprint", `1` = "imprint")) +
-  theme(
-    axis.title.x = element_text(size = rel(0.8))
-  )
-
-```
+#### Plot: raw data
 
 ```{r, echo=FALSE, fig.align='center'}
 
@@ -1817,19 +1904,32 @@ recall_figure
 
 ```
 
-To test this, recall of the campaigner name can be tested with a logistical regression model to see if viewing the imprint boosted recall of the name. This also uses a newly created dataframe: recall_transform. 
+#### Pre-registration deviations
 
-Correct names:
+Pre-registered models:
 
--   Advert 1: Common sense collective: CSC 
--   Advert 2: Breaking barriers alliance: BBA
--   Advert 3: Speak freely inc: SFI
--   Advert 4: Campaign for a better Britain: CBB
+- Model 3 <- glm(campaigner name recall ~ imprint viewed, family = binomial())
+- Model 5 <- lm(correct campaigner name recall ~ training condition)
+
+Reported model:
+
+- Model 3 <- glmer(recall ~ version*Training.condition + (1|id) + (1|advert))
+
+Reason for deviation:
+
+- The pre-registered models were deemed inappropriate as, due to an oversight of the researcher when pre-registering, model 3 did not include random effects for participant and advertisement type. This was because the original models tested each advertisement separately. When the data was then merged for a combined analysis, although the random effects were planned, their inclusion was missed off the pre-registration document during the update. Additionally, for efficient reporting, there appeared no reason not to combine the models so both hypotheses could be tested at the same time. Thus, the following models were compared for their viability that tested both hypotheses 2a (pre-registered as 1b) and 2b (pre-registered as 2a), incorporated random effects structures of various model complexities and assessing model fit.
+
+#### Model fit metrics: AIC
+
+- Random intercepts: Outcome ~ 1 + version + training + (1|participant id) + (1|material)
+- Maximal random slopes model: Outcome ~ 1 + version + training + (1|participant id) + (1 + version|material)
+- Material:version intercepts model: Outcome ~ 1 + version + training + (1|participant id) + (1|material:version)
+- Fixed-effect interaction: Outcome ~ 1 + version*training + (1|participant id) + (1|material)
+
+
 
 #### Model
 
-- Outcome: recall, binary factor
-- Predictor: version, binary factor
 
 ```{r, echo=FALSE}
 
@@ -1870,7 +1970,7 @@ mixed(recall ~ version*Training.condition +
 
 ```
 
-#### False Discovery Rate Checks for p-value
+#### False Discovery Rate
 
 ```{r echo=FALSE}
 
@@ -1893,7 +1993,7 @@ adjusted_p_vals
 
 ```
 
-#### Plotting: model predictions
+#### Plot: model predictions
 
 ```{r, echo=FALSE, fig.align='center'}
 
@@ -1915,9 +2015,7 @@ recall_interaction <- plot(interaction_plot_data) +
 
 ```
 
-#### Assumptions and comparative model fit
-
-<details>
+#### Model assumptions 
 
 The graphs below check for normality in the residuals of the model. A straight line suggests normality. As can be seen, in the random effects model (right) there is a heavier tail towards the middle, suggesting some variability in the data is not captured by the model. These are not strict assumptions that need to be met in a model that uses a binomial distribution, but are included to provide a full picture of the models fit.
 
@@ -1971,13 +2069,13 @@ cat('
 
 ```
 
-</details>
+#### Supplementary: Advert Variations
 
-#### Supplementary analysis: Advert Level Variations
+This part of the analysis relates to the following section of the paper: 
 
-*Did viewing a digital imprint with a piece of campaign material increase participants memory of the campaigner name, and how was the impacted by the aesthetic specifics of the advert?*
+*"Overall, these robustness checks cast doubt on the consistency of these effects across different participants and material contents and formats. To provide more context, an exploratory analysis (reported in full in the supplementary materials) tested the effect of the digital imprint on each of the four experimental materials separately. It is noted that the total recall rates across the materials differed; material one was recalled correctly by 63.1% of participants, material two by 46.2%, material three by 37.7% and material four by 71.4%. The analysis indeed supported differences between the effect of digital imprints across different materials. For material two and three, those with a relatively lower recall rate overall, the presence of a digital imprint with the material resulted in significantly higher recall (material two: OR = 1.66, 95% CI [1.11, 2.47], p = <.001; material three: OR = 1.38, 95% CI [0.98, 1.94], p = 0.01). In contrast, for advert one and four, those with a relatively high recall rate overall, the presence of a digital imprint had no impact (material one: OR = 1.18, 95% CI [0.88, 1.57], p = 0.19; material four: OR = 1.28 , 95% CI [0.91, 1.78], p = 0.07)."*
 
-To test this, each correct campaign name can be tested one by one with a logistical regression model to see if viewing the imprint boosted recall of the name. For this measure, there will therefore be 4 models and corresponding visualisations. This also uses the independent measures data frame with only one row per participant: training_df.
+To test this, each correct campaign name was tested one by one with a logistical regression model to see if viewing the imprint boosted recall of the name. This results in 4 models and corresponding visualisations. This analysis uses the independent measures data frame with only one row per participant: training_df.
 
 Correct names:
 
@@ -1986,7 +2084,7 @@ Correct names:
 -   Advert 3: Speak freely inc: SFI
 -   Advert 4: Campaign for a better Britain: CBB
 
-This analysis also will tell us something about how the imprint impacted recall for each advert differently. If imprints only increase recall on some adverts and not others, this may be related to the formatting and aesthetic features of the post itself e.g., how obvious the campaign name was, or even how memorable the name was. To find evidence that supports digital imprints consistently increase recall, regardless of the formatting of the imprint, we should expect to consistently see higher recall across four campaign group names when an imprint is present.
+Logs odds from the default model are converted to an odds ratio for easier interpretation. These are then presented as a table with the output of the regression. To understand the direction of the odds ratio, check the original log odds coefficient. 
 
 ```{r logistic regression function, echo=FALSE}
 
@@ -2019,8 +2117,6 @@ fit_and_summarise_model <- function(outcome_var, predictor_var, data) {
 }
 
 ```
-
-Logs odds from the default model are converted to an odds ratio for easier interpretation. These are then presented as a table with the output of the regression. To understand the direction of the odds ratio, check the original log odds coefficient. 
 
 ```{r, include=FALSE}
 
@@ -2118,6 +2214,8 @@ kable(CBB_Advert.4_Table, format = "html", digits = 2, caption = "Recall of comm
 
 ```
 
+#### Supplementary: plots
+
 ```{r, echo=FALSE, fig.align='center'}
 
 csc_raw <- ggplot(training_df, aes(x = factor(Advert.1, labels = c("no imprint", "imprint")), fill = factor(CSC, levels = c(0, 1), labels = c("no recall", "correct recall")))) +
@@ -2172,25 +2270,45 @@ composite_plot
 
 ## Hypotheses 3a and 3b
 
-### Outcome: Perceived Informedness
-
-Hypothesis 1c:
+### Outcome: Perceived Informedness {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant's perception that they had been informed about the source of the content?*
 
-- Outcome: informed, numerical 1-7
-- Predictor: version, binary factor
-- Random effects: id and advert
-
-Hypothesis 2b:
-
 *Were trained participants more likely to correctly identify that they were less informed when a digital imprint was not present, and more informed when a digital imprint was present, compared to the group who received no training?*
 
-- Outcome: perceived informedness, numerical 1-7
-- fixed effect: training condition x version of imprint viewed (interaction effect)
-- random effects: id and advert
+#### Plot: raw data
 
-#### Model
+```{r, echo=FALSE, fig.align='center'}
+
+ggplot(imprint_df, aes(x = factor(version), y = informed)) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  geom_boxplot(width = 0.2) +
+  labs(x = "Version of advert", y = "Perceived informedness", title = "Distribution of perceived informedness by version of ad viewed") +
+  theme_minimal()
+
+# Calculate summary statistics
+summary_stats <- imprint_df %>%
+  group_by(Training.condition, version) %>%
+  summarise(n = n(),
+            mean_informed = mean(informed, na.rm = TRUE),
+            sd_informed = sd(informed, na.rm = TRUE),
+            .groups = 'drop') %>%
+  ungroup()
+
+kable(summary_stats, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved informedness",
+      col.names = c("trained", "version", "n", "mean", "sd")) %>%
+  kable_classic(full_width = F, position = "center", html_font = "Cambria")
+
+```
+
+
+#### Pre-registration deviations
+
+
+
+#### Model fit metrics: AIC
+
+For this model, the inclusion of an interaction term was central to hypotheses 3b. For this reason, only alternates in random effects structures are compared.
 
 ```{r, echo=FALSE}
 
@@ -2207,17 +2325,6 @@ informed_2 <- lmer(informed ~ version*Training.condition + (1|id) + (version|adv
 informed_3 <- lmer(informed ~ version*Training.condition + (1|id) + (1|advert:version), data = imprint_df)
 
 AIC(informed_1, informed_2, informed_3)
-
-#p-values adjusted for false discovery rate
-
-# Extract p-values from the summary of the model
-p_vals <- summary(informed_1)$coefficients[, "Pr(>|t|)"]
-
-# Adjust p-values using the Benjamini-Hochberg method for FDR
-adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
-
-# View the adjusted p-values
-adjusted_p_vals
 
 ```
 
@@ -2236,48 +2343,24 @@ inform_pi_tab
 
 ```
 
-#### Plotting: raw data
+#### False discovery rate
 
-```{r, echo=FALSE, fig.align='center'}
+```{r}
 
-ggplot(imprint_df, aes(x = factor(version), y = informed)) +
-  geom_jitter(width = 0.2, alpha = 0.5) +
-  geom_boxplot(width = 0.2) +
-  labs(x = "Version of advert", y = "Perceived informedness", title = "Distribution of perceived informedness by version of ad viewed") +
-  theme_minimal()
+#p-values adjusted for false discovery rate
 
-```
+# Extract p-values from the summary of the model
+p_vals <- summary(informed_1)$coefficients[, "Pr(>|t|)"]
 
-#### Plotting: Raw data
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
 
-```{r, echo=FALSE, fig.align='center'}
-
-# Calculate summary statistics
-summary_stats <- imprint_df %>%
-  group_by(Training.condition, version) %>%
-  summarise(n = n(),
-            mean_informed = mean(informed, na.rm = TRUE),
-            sd_informed = sd(informed, na.rm = TRUE),
-            se_informed = sd_informed / sqrt(n),
-            ci_upper = mean_informed + 1.96 * se_informed,
-            ci_lower = mean_informed - 1.96 * se_informed) %>%
-  ungroup()
-
-kable(summary_stats, format = "html", digits = 2, caption = "Decriptive bivariate statistics for percieved informedness") %>%
-  kable_classic(full_width = F, position = "center", html_font = "Cambria")
-
-#Plotting the raw data
-
-pi_plot <- ggplot(data = imprint_df, aes(x = Training.condition, y = informed, fill = version)) 
-
-pi_plot + 
-  geom_point(aes(color = version), position = position_jitterdodge(), alpha = 0.5) +
-  geom_boxplot(width = 0.2) +
-  theme_minimal()
+# View the adjusted p-values
+adjusted_p_vals
 
 ```
 
-#### Plotting: Model predictions
+#### Plot: model predictions
 
 ```{r, echo=FALSE, fig.align='center'}
 
