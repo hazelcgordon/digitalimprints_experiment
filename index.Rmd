@@ -7,6 +7,8 @@ output:
   html_document:
     theme: "flatly"
     toc: true
+    toc_float: true
+    highlight: "haddock"
 ---
 
 ```{r setup, include=FALSE}
@@ -22,6 +24,25 @@ body {
   padding: 10px;
 }
 </style>
+
+This document includes all information referenced in the main paper. We show full details of the process of analysis and the steps taken to ensure the statistical viability of those reported, documenting what the pre-registered models were and providing justification in cases where the final models differed. Please see section ‘variations of statistical models tested’ for more details. 
+
+As a supplementary analysis, we also show how differences between the adverts impacted key outcome variables. However, keep in mind the mixed-effect models used tested if the main effects were generalisable beyond specific stimuli-level differences. The advert-level results are provided here for context but do not affect the generalisability or statistical robustness of our primary conclusions. 
+
+### Model Fit Considerations
+
+For hypotheses 1-3 we used mixed-effect modelling techniques. It is essential for random effect model structures to be theoretically motivated and justified (Brown, 2021). During the pre-registration stage, it was reasoned the inclusions of two separate random intercept terms set for participants (1,322 grouping levels) and each material (four grouping levels) were the most suitable due to how each participant would approach the materials with a different evaluative baseline, and in turn each piece of material differed in its message and format creating its own baseline through which it would be judged from. However, during the process of data analysis, some key considerations came to light which concerned best practice for multi-level models, a topic debated across the literature.
+
+For example, it is recognised that not accounting for correlations within the random effects increases the risk of a type 1 error when estimated fixed effects (Matuschek et al., 2017). For this reason, Barr et al. (2013) recommend always opting for the ‘maximal’ model (with the highest complexity) that can be theoretically justified. However, increasing model complexity also reduces statistical power, requiring consideration as to whether it can be deemed a necessary trade off (Matuschek et al., 2017). Matuschek et al. (2017) recommend using estimators of model fit, such as the Likelihood Ratio Test (LRT) and the Akaike Information Criterion (AIC) to check if increasing complexity substantially improves model fit.
+
+This point is relevant because, during the analysis, other theoretically viable model structures were identified that supported a more complex random effect structure. For example, adding a random slope term would account for whether the effect of a digital imprint varied depending on the unique characteristics of the material—i.e., if the digital imprint was effective on some materials but not others. Consequently, various theoretically justified models were tested to find a random effects structure that balanced complexity with good model fit. Following the recommendations in Matuschek  et al. (2017), to assess model suitability we used likelihood ratio tests (LRT) to compare nested models (e.g., the addition of interaction terms between fixed effects) and AIC to compare models with different random effect structures. Models with lower AIC values indicate a better relative fit for the data (Cavanaugh and Neath, 2019), helping determine if additional complexity improves (or weakens) model performance (Matuschek et al., 2017). Out of all model variants tested, the model with the lowest AIC - if it would converge - was used as a baseline. Those with an AIC within two units of the lowest were considered viable, while those between two and ten units of the lowest were deemed less supported. Models with AIC values ten units or more above the best model were considered unsupported as a model structure (for an explanation see Cavanaugh and Neath, 2019). Full details of alternative models are provided, and deviations from pre-registered models are transparently discussed. 
+
+Criteria for determining model support (Cavanaugh & Neath, 2019):
+
+- Model with the lowest AIC = best model fit
+- Within 0-2 of lowest model = viable model and should still be considered if it better reflects the theoretical motivations of the analysis
+- Within 2-10 of the lowest model = low support for the model 
+- 10+ of the lowest model = no support for this model
 
 <details>
 
@@ -838,6 +859,7 @@ If you would like to run the original pre-registered analysis script for compari
 ```{r mixed effects libraries, warning=FALSE}
 
 library(lme4)
+library(lmerTest)
 library(Matrix)
 library(sjPlot)
 library(ggplot2)
@@ -848,6 +870,7 @@ library(patchwork)
 library(knitr)
 library(kableExtra)
 library(broom)
+library(broom.mixed)
 library(htmltools)
 library(rlang)
 library(psych)
@@ -859,9 +882,9 @@ library(stats)
 
 </details>
 
-Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. The package 'MASS' is used in the final stage of the script. This is loaded later to avoid package conflicts with tidyverse/dplyr.
+Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. The package 'MASS', 'Lavaan' and 'Laavanplot' are used in the final stage of the script. They is loaded later to avoid package conflicts with tidyverse/dplyr.
 
-## Pre-analysis Checks {tabset.}
+## Pre-analysis Checks {.tabset}
 
 ### Scale reliability
 
@@ -1003,6 +1026,8 @@ descriptive_stats %>%
 
 ```
 
+### Univariate Histograms
+
 Below then shows the distribution of each variable as a histogram.
 
 ```{r, include=FALSE}
@@ -1119,6 +1144,8 @@ kable(percentage_df, "html", booktabs = TRUE, digits = 2,
 
 ```
 
+### Knowledge of Regulation
+
 Below shows how regulation knowledge was distributed across the whole sample, with the third option being the correct answer. This measure is not included in the pre-registered analysis, but is helpful to get a sense of how knowledgeable the sample was regarding regulatory law in the UK. Training and no training condition are shown separately. It can be seen, the training did not appear to impact the frequency of responses, with the highest count of participant in each condition identifying the correct response option across both conditions.
 
 ```{r, echo=FALSE, fig.align='center'}
@@ -1198,8 +1225,6 @@ p
 
 ```
 
-The Electoral Commission
-
 ```{r, echo=FALSE, fig.align='center'}
 
 #set as factor
@@ -1248,13 +1273,13 @@ p
 
 ```
 
-## Hypothesis 1a
+## Hypothesis 1a 
 
-### Outcome: political goal
+### Outcome: political goal {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material had a political goal?*
 
-#### Plotting raw data
+#### Plot: raw data
 
 Below shows the skewed nature of the outcome variable, as well as the association separately for each advert.
 
@@ -1281,21 +1306,42 @@ imprint_df %>%
 
 ```
 
+#### Pre-registration deviations
+
+Pre-registered model:
+
+- model 1 <- lmer(political goal ~ imprint viewed + (1|id) + (1|advert))
+
+Reported model:
+
+- model 1 <- lmer(political goal ~ version + training + (1|participant id) + (1|material))
+
+Main deviation:
+
+- The effect of training was included as, although not central to the hypotheses, it was recognised the training may have also influenced perceptions of the outcome that needed to be accounted for to ensure the effect of version was not overestimated
+
+*Why random effects at all?*
+
 Random effects are essential to include because it is expected individual participants will evaluate the adverts from different baselines. Fitting a model that accounts for this variance in baseline assessments among participants recognises the individual differences in perceptions that occur in response patterns.
 
 Random effects are also necessary for the adverts themselves, to acknowledge that each advert will also elicit different perceptions due to their content or nature. Capturing this variability reflects the reality that some adverts, by their design are more, for example, politically charged or persuasive than others, thereby starting from different evaluative baselines.
 
-*Model suitability considerations*
+#### Model fit metrics: AIC
 
-However, it is also recognised a variety of random effect structures would be theoretically feasible. To choose the most appropriate model out of the alternatives, model fit criterion are used to assess if adding model complexity sacrifices valid estimation through increasing the possibility of a type ... error (REF). 
+*Why was the reported model chosen out of theoretically feasible variants?*
 
-In this case, the final chosen model included random intercepts for participant ID and advert. As can be seen in the model variation comparisons, including random slopes worsened the fit of the model when evaluated using AIC values. This strongly implies adding model complexity in the form of random slopes does not aid a valid estimation of effects in this case, likely due to the small effects of digital imprint version.
+It is recognised a variety of random effect structures would be theoretically feasible. To choose the most appropriate model out of the alternatives, model fit criterion are used to assess if adding model complexity sacrifices valid estimation through reducing statistical power (Matuschek  et al. 2017). 
 
-- Outcome: PG_value, numerical 1-7
-- Predictor: version, binary factor
-- Random effects: id and advert (intercepts)
+Theoretically feasible model structures:
 
-#### Checking for model fit metrics using AIC values
+- Random intercepts: Outcome ~ 1 + version + training + (1|participant id) + (1|material)
+- Maximal random slopes model: Outcome ~ 1 + version + training + (1|participant id) + (1 + version|material)
+- Material:version intercepts model: Outcome ~ 1 + version + training + (1|participant id) + (1|material:version)
+- Fixed-effect interaction: Outcome ~ 1 + version*training + (1|participant id) + (1|material)
+
+In this case, the final chosen model included random intercepts for participant ID and advert. As can be seen below in the model variation comparisons, including random slopes worsened the fit of the model when evaluated using AIC values. This strongly implies adding model complexity in the form of random slopes does not aid a valid estimation of effects in this case, likely due to the small effects of digital imprint version.
+
+The 'fit is singular' warning message below means the model failed to converge, and in this case relates to model structure 2.
 
 ```{r political goal actual informedness, echo=FALSE}
 
@@ -1331,7 +1377,7 @@ variables_pg3 <- "version*training + id (random intercept) + advert (random inte
 
 # Create a data frame including all wanted information
 aic_table <- data.frame(
-  Variations = c("Model 1", "Model 2", "Model 3", "Model 4"),
+  Variations = c("Structure 1", "Structure 2", "Structure 3", "Structure 4"),
   Variables = c(variables_pg, variables_pg1, variables_pg2, variables_pg3),
   AIC = c(aic_pg, aic_pg1, aic_pg2, aic_pg3)
 )
@@ -1347,18 +1393,73 @@ aic_table %>%
 
 ```{r, echo=FALSE, fig.align='center'}
 
-#Visualising the findings: table
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(ainform_pg, effects = "fixed", conf.int = TRUE)
 
-inform_pg_tab <- tab_model(ainform_pg, 
-                           pred.labels = c("Intercept", "Digital Imprint 
-                                           included", "Training Condition"),
-                           dv.labels = "Perceived Political Nature")
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(ainform_pg))
 
-inform_pg_tab
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(ainform_pg)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ²", "Marginal R²", "Conditional R²"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "version1" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition1" ~ "Training\n (ref: no training)",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: political goal",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
-#### Plotting: model predictions
+#### Plot: model predictions
 
 ```{r, echo=FALSE, fig.align='center'}
 
@@ -1436,7 +1537,7 @@ shapiro.test(advert_effects)
 
 </details>
 
-### Outcome: Persuasion Knowledge 
+### Outcome: Persuasion Knowledge {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was trying to persuade them of a certain viewpoint?*
 
