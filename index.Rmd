@@ -899,7 +899,7 @@ The following scales are checked with a confirmatory factor analysis to assess w
 - PPI (perceived persuasive intent)
 - Credibility
 
-```{r}
+```{r echo=FALSE}
 
 # Subset the items
 pin_subset <- imprint_df[, c("informed2_value", "informed3_value", "informed4_value")]
@@ -944,8 +944,170 @@ cor_table %>%
 
 ```
 
+Perceived persuasive intent
+
+4 items
 
 ```{r echo=FALSE}
+
+# Subset the items
+ppi_subset <- imprint_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
+
+# Assuming a single latent factor
+omega_ppi <- omega(ppi_subset, nfactors = 1)
+
+# Extract Omega Total
+omega_t <- round(omega_ppi$omega.tot, 2)  # Round to 2 decimal places
+
+# Extract Factor Loadings and rename correctly
+factor_loadings <- round(omega_ppi$schmid$sl[, 1], 2)
+names(factor_loadings) <- c("PPI item one", "PPI item two", "PPI item three", "PPI item four")  # Ensure correct names
+
+# Compute Correlation Matrix
+cor_matrix <- round(cor(ppi_subset), 2)
+
+# Define new names for the items
+item_names <- c("PPI item one", "PPI item two", "PPI item three", "PPI item four")
+
+# Convert correlation matrix to a dataframe for kableExtra
+cor_table <- as.data.frame(cor_matrix)
+
+# Rename row and column names
+rownames(cor_table) <- item_names
+colnames(cor_table) <- item_names
+
+# Convert Factor Loadings into a dataframe and merge
+factor_loadings_df <- data.frame(Item = item_names, Factor_Loading = factor_loadings)
+
+# Convert correlation matrix into a long-format dataframe for merging
+cor_table <- cor_table %>%
+  mutate(Item = rownames(.)) %>%
+  left_join(factor_loadings_df, by = "Item") %>%  # Merge factor loadings
+  relocate(Item)  # Move "Item" column to the front
+
+# Print Table with kableExtra
+cor_table %>%
+  kable("html", caption = "Reliability Analysis: Correlations, Factor Loadings & Omega Total") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  add_footnote(label = paste("McDonald's Omega Total (Ωt) =", omega_t), notation = "none")
+
+```
+
+```{r echo=FALSE}
+
+fa.parallel(ppi_subset)
+
+# Using an exploratory factor analysis, oblimin used as factors expected to be related
+fa_results <- fa(ppi_subset, nfactors = 2, rotate = "oblimin")
+print(fa_results$loadings, cutoff = 0.30)
+
+# Extract Factor Loadings
+factor_loadings <- as.data.frame(unclass(fa_results$loadings)) %>%
+  round(2)  # Round to 2 decimal places
+
+# Rename columns for readability
+colnames(factor_loadings) <- c("Factor 1 (MR1)", "Factor 2 (MR2)")
+
+# Add Item names
+factor_loadings$Item <- rownames(factor_loadings)
+
+# Reorder columns so "Item" is first
+factor_loadings <- factor_loadings %>% select(Item, everything())
+
+# Extract Variance Explained Information
+variance_table <- data.frame(
+  Factor = c("Factor 1 (MR1)", "Factor 2 (MR2)", "Total"),
+  SS_Loadings = c(fa_results$Vaccounted["SS loadings", 1:2], sum(fa_results$Vaccounted["SS loadings", 1:2])),
+  Proportion_Variance = c(fa_results$Vaccounted["Proportion Var", 1:2], sum(fa_results$Vaccounted["Proportion Var", 1:2])),
+  Cumulative_Variance = c(fa_results$Vaccounted["Cumulative Var", 1:2], NA)
+) 
+
+# Apply rounding only to numeric columns
+variance_table[, 2:4] <- round(variance_table[, 2:4], 2)
+
+# Remove row names to avoid redundant first column
+rownames(variance_table) <- NULL
+rownames(factor_loadings) <- NULL
+
+# Print the table using kableExtra
+variance_table %>%
+  kable("html", caption = "Variance Explained by Factors") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+# Print Factor Loadings Table
+factor_loadings %>%
+  kable("html", caption = "Factor Loadings from EFA") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+# Subset items based on factor loadings
+ppi_subset_MR1 <- ppi_subset[, c("PK1_value", "PK3_value")]  # Factor 1
+ppi_subset_MR2 <- ppi_subset[, c("PK2_value", "PK4_value")]  # Factor 2
+
+# Compute Omega Total for Factor 1
+omega_MR1 <- omega(ppi_subset_MR1, nfactors = 1, check.keys = TRUE)
+
+# Compute Omega Total for Factor 2
+omega_MR2 <- omega(ppi_subset_MR2, nfactors = 1, check.keys = TRUE)
+
+# Extract Omega Total Values
+omega_t_MR1 <- round(omega_MR1$omega.tot, 2)
+omega_t_MR2 <- round(omega_MR2$omega.tot, 2)
+
+# Print Omega Total Results
+print(paste("Omega Total for Factor 1 (MR1):", omega_t_MR1))
+print(paste("Omega Total for Factor 2 (MR2):", omega_t_MR2))
+
+```
+
+Credibility
+
+```{r echo=FALSE}
+
+# Subset the items
+cred_subset <- imprint_df[, c("trustworthy_value", "believable_value", "accurate_value", "factual_value")]
+
+# Assuming a single latent factor
+omega_cred <- omega(cred_subset, nfactors = 1, check.keys = TRUE)
+
+# Extract Omega Total
+omega_t <- round(omega_cred$omega.tot, 2)  # Round to 2 decimal places
+
+# Extract Factor Loadings and rename correctly
+factor_loadings <- round(omega_cred$schmid$sl[, 1], 2)
+names(factor_loadings) <- c("Trustworthy", "Believable", "Accurate", "Factual")  # Ensure correct names
+
+# Compute Correlation Matrix
+cor_matrix <- round(cor(cred_subset), 2)
+
+# Define new names for the items
+item_names <- c("Trustworthy", "Believable", "Accurate", "Factual")
+
+# Convert correlation matrix to a dataframe for kableExtra
+cor_table <- as.data.frame(cor_matrix)
+
+# Rename row and column names
+rownames(cor_table) <- item_names
+colnames(cor_table) <- item_names
+
+# Convert Factor Loadings into a dataframe and merge
+factor_loadings_df <- data.frame(Item = item_names, Factor_Loading = factor_loadings)
+
+# Convert correlation matrix into a long-format dataframe for merging
+cor_table <- cor_table %>%
+  mutate(Item = rownames(.)) %>%
+  left_join(factor_loadings_df, by = "Item") %>%  # Merge factor loadings
+  relocate(Item)  # Move "Item" column to the front
+
+# Print Table with kableExtra
+cor_table %>%
+  kable("html", caption = "Reliability Analysis: Correlations, Factor Loadings & Omega Total") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  add_footnote(label = paste("McDonald's Omega Total (Ωt) =", omega_t), notation = "none")
+
+```
+
+
+```{r include=FALSE}
 
 #Checking the four measures
 #Using Lavaan to define the measures for inclusion in the model
@@ -989,11 +1151,7 @@ loadings %>%
 
 ```
 
-It can be seen that the factual-opinionated measure does not load well onto the dimension, which in turn jeprodises the model fit of the dimension below conventional levels of acceptability. 
-
-The tables below repeat the above process, checking for the validity of the credible dimension with only the trustworthy, accuracy and believable values.
-
-```{r echo=FALSE}
+```{r include=FALSE}
 
 #Checking three measures
 #Using Lavaan to define the measures for inclusion in the model
@@ -1037,40 +1195,6 @@ reduced_loadings %>%
 
 ```
 
-### Scale reliability
-
-Below shows the cronbach alpha scores for the mean-averaged scale items in the dataset:
-
-- Persuasion knowledge
-- Percieved informedness
-
-```{r cronbachs alpha, echo=FALSE}
-
-cronbach_PK <- imprint_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
-cronbach_inform <- imprint_df[, c("informed2_value", "informed3_value", "informed4_value")]
-
-alpha_PK <- alpha(cronbach_PK)
-alpha_inform <- alpha(cronbach_inform)
-
-#index out the 'raw_alpha' value
-
-alpha_results <- data.frame(
-  Scale = c("cronbach_PK", "cronbach_inform"),
-  Cronbachs_Alpha = c(alpha_PK$total$raw_alpha, alpha_inform$total$raw_alpha) 
-)
-
-rownames(alpha_results) <- c("Persuasion knowledge", 
-                             "Perceived informedness")
-
-alpha_results <- alpha_results %>%
-  select(-Scale)
-
-kable(alpha_results, col.names = c("Scale", "Alpha"), caption = "Cronbach's Alpha for Scales", align = c('c'), digits = 2) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
-  column_spec(1, bold = TRUE)
-
-```
-
 ### Sample
 
 A representative sample option was used when collecting data from Prolific, matching UK census data for age, gender and ethnicity. The following table shows the make up of the sample for these demographics as well as education and political party identification, after exclusions.
@@ -1080,6 +1204,27 @@ A representative sample option was used when collecting data from Prolific, matc
 ### Univariate statistics
 
 Below provides descriptive statistics for the key predictor and outcome variables. The first table lists the continuous measures in the repeated measures part of the experiment, and the second shows confidence in regulation, which was only measured once. As can be seen, perceived political goal was heavily skewed. This suggested the political nature of each post was easy for participants to infer. 
+
+```{r include=FALSE}
+
+#Creating PA score to be distinct from PPI
+
+imprint_df <- imprint_df %>%
+  rowwise() %>%
+  mutate(PPI = mean(c(PK2_value, PK4_value)))
+
+imprint_df <- imprint_df %>%
+  rowwise() %>%
+  mutate(PA = mean(c(PK1_value, PK3_value)))
+
+#mean scoring credibility
+
+imprint_df <- imprint_df %>%
+  rowwise() %>%
+  mutate(Credibility = mean(c(trustworthy_value, believable_value, accurate_value, factual_value)))
+
+```
+
 
 ```{r, echo=FALSE}
 
@@ -1101,20 +1246,16 @@ calculate_summary <- function(data, variable_name) {
 
 # List of variables
 
-var_summary <- c("PG_value", "PK", "informed", "agree_value", 
-                            "trustworthy_value", "believable_value", 
-                            "factual_value", "accurate_value")
+var_summary <- c("informed", "PPI", "PA", "PG_value", "Credibility")
 
 # Apply the summary function to each variable and combine results
 summary_table <- map_df(var_summary, ~calculate_summary(imprint_df, .x))
 
 #rename the variables
 
-original_names <- c("PG_value", "PK", "informed", "agree_value", 
-                    "trustworthy_value", "believable_value", 
-                    "factual_value", "accurate_value")
+original_names <- c("informed", "PPI", "PA", "PG_value", "Credibility")
 
-new_names <- c("Political goal", "Persuasion knowledge", "Perceived informedness", "Agreement", "Trustworthiness", "Believability", "Factualness", "Accuracy")
+new_names <- c("Perceived informedness", "Perceived persuasive intent", "Perceived advertisement", "Perceived political goal", "Credibility")
 
 name_mapping <- setNames(new_names, original_names)
 
@@ -1154,25 +1295,22 @@ Below shows this information split by the two conditions: training and version v
 descriptive_stats <- imprint_df %>%
   group_by(Training.condition, version) %>%
   summarise(
-    PG_value_mean = mean(PG_value, na.rm = TRUE),
-    PG_value_sd = sd(PG_value, na.rm = TRUE),
-    PK_mean = mean(PK, na.rm = TRUE),
-    PK_sd = sd(PK, na.rm = TRUE),
     informed_mean = mean(informed, na.rm = TRUE),
     informed_sd = sd(informed, na.rm = TRUE),
-    trustworthy_value_mean = mean(trustworthy_value, na.rm = TRUE),
-    trustworthy_value_sd = sd(trustworthy_value, na.rm = TRUE),
-    believable_value_mean = mean(believable_value, na.rm = TRUE),
-    believable_value_sd = sd(believable_value, na.rm = TRUE),
-    factual_value_mean = mean(factual_value, na.rm = TRUE),
-    factual_value_sd = sd(factual_value, na.rm = TRUE),
-    accurate_value_mean = mean(accurate_value, na.rm = TRUE),
-    accurate_value_sd = sd(accurate_value, na.rm = TRUE)
+    PPI_mean = mean(PPI, na.rm = TRUE),
+    PPI_sd = sd(PPI, na.rm = TRUE),
+    PA_mean = mean(PA, na.rm = TRUE),
+    PA_sd = sd(PA, na.rm = TRUE),
+    PG_value_mean = mean(PG_value, na.rm = TRUE),
+    PG_value_sd = sd(PG_value, na.rm = TRUE),
+    Credibility_mean = mean(Credibility, na.rm = TRUE),
+    Credibility_sd = sd(Credibility, na.rm = TRUE),
+    .groups = 'drop'
   )
 
 # Create and format the table
 descriptive_stats %>%
-  kable(format = "html", digits = 2, col.names = c("Training Condition", "Version", "PG Mean", "PG SD", "PK Mean", "PK SD", "Informed Mean", "Informed SD", "Trustworthy Mean", "Trustworthy SD", "Believable Mean", "Believable SD", "Factual Mean", "Factual SD", "Accurate Mean", "Accurate SD")) %>%
+  kable(format = "html", digits = 2, col.names = c("Training Condition", "Version", "Informed Mean", "Informed SD", "PPI Mean", "PPI SD", "PA Mean", "PA SD", "PG Mean", "PG SD", "Credibility Mean", "Credibility SD")) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 
 ```
@@ -1698,7 +1836,7 @@ shapiro_results %>%
 
 ```
 
-### Outcome: Persuasion Knowledge {.tabset}
+### Outcome: Perceived persuasive intent PPI {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was trying to persuade them of a certain viewpoint?*
 
@@ -1708,20 +1846,332 @@ shapiro_results %>%
 
 #visualising: raw data
 
-ggplot(imprint_df, aes(x = factor(version), y = PK)) +
+ggplot(imprint_df, aes(x = factor(version), y = PPI)) +
   geom_jitter(width = 0.2, alpha = 0.5) +
   geom_boxplot(width = 0.2) +
-  labs(x = "Version of advert", y = "Persuasion Knowledge", title = "Distribution of persuasion knowledge by version of ad viewed") +
+  labs(x = "Version of advert", y = "PPI", title = "Distribution of PPI by version of ad viewed") +
   theme_minimal()
 
 #advert level differences
 
 imprint_df %>% 
-  ggplot(mapping = aes(x = factor(version), y = PK, colour = factor(advert))) +
+  ggplot(mapping = aes(x = factor(version), y = PPI, colour = factor(advert))) +
   geom_point() +
   geom_jitter(alpha = 0.1) +
   geom_smooth(mapping = aes(group = advert), method = "lm", se = FALSE, fullrange = TRUE) +
-  labs(y = "Percieved Persuasion Knowledge",
+  labs(y = "Percieved PPI",
+    colour = "Advert", x = "Version") +
+  theme_minimal()
+
+```
+
+#### Pre-registration Deviations
+
+Pre-registered model:
+
+- model 2 <- lmer(PPI ~ imprint viewed + (1|id) + (1|advert))
+Reported model:
+
+- model 2 <- lmer(PPI ~ version + training + (1|participant id) + (1|material))
+
+Main deviation:
+
+- The effect of training was included as, although not central to the hypotheses, it was recognised the training may have also influenced perceptions of the outcome that needed to be accounted for to ensure the effect of version was not overestimated
+
+#### Model fit metrics: AIC
+
+As with the political goal outcome, the same set of model structures were tested for their AIC values.
+
+Theoretically feasible model structures:
+
+- Random intercepts: Outcome ~ 1 + version + training + (1|participant id) + (1|material)
+- Maximal random slopes model: Outcome ~ 1 + version + training + (1|participant id) + (1 + version|material)
+- Material:version intercepts model: Outcome ~ 1 + version + training + (1|participant id) + (1|material:version)
+- Fixed-effect interaction: Outcome ~ 1 + version*training + (1|participant id) + (1|material)
+ 
+In this case, the final chosen model was structure 1. As can be seen below in the model variation comparisons, increasing model complexity with random slopes or the inclusion of interaction effects worsened the fit of the model when evaluated using AIC values. This strongly implies adding model complexity in the form of random slopes does not aid a valid estimation of effects in this case, likely due to the small effects of digital imprint version.
+
+```{r persuasion knowledge, echo=FALSE}
+
+#ainform_pk <- lmer(PK ~ version + (1|id) + (1|advert), data = imprint_df)
+
+#issue with convergence for model below, used apex package to investigate, bobyqa was able to converge
+
+ainform_pk1 <- lmer(PPI ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"))
+
+#random slopes for version and advert
+
+ainform_pk2 <- lmer(PPI ~ version + Training.condition + (1| id) + (1 + version|advert), data = imprint_df)
+
+# advert:version intercept vary
+
+ainform_pk3 <- lmer(PPI ~ version + Training.condition + (1 | id) + (1|advert:version), data = imprint_df)
+
+# fixed effect interaction version and training
+
+ainform_pk4 <- lmer(PPI ~ version*Training.condition + (1 | id) + (1|advert), data = imprint_df)
+
+#visualising the AIC comparisons
+aic_pk <- AIC(ainform_pk1)
+aic_pk1 <- AIC(ainform_pk2)
+aic_pk2 <- AIC(ainform_pk3)
+aic_pk3 <- AIC(ainform_pk4)
+
+# Define variable descriptions
+variables_pk <- "version + training + id (random intercept) + advert (random intercept)"
+variables_pk1 <- "version + training + id (random intercept) + (version & advert (random slope))"
+variables_pk2 <- "version + training + id (random intercept) + (advert:version (random intercepts vary))"
+variables_pk3 <- "version*training + id (random intercept) + advert (random intercept)"
+
+# Create a data frame including all wanted information
+aic_table <- data.frame(
+  Variations = c("Model 1", "Model 2", "Model 3", "Model 4"),
+  Variables = c(variables_pk, variables_pk1, variables_pk2, variables_pk3),
+  AIC = c(aic_pk, aic_pk1, aic_pk2, aic_pk3)
+)
+
+#create table
+aic_table %>%
+  kable(caption = "AIC Values and Variables: Persuasion Knowledge", escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+#### Model outcomes: Table
+
+```{r, echo=FALSE, fig.align='center'}
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(ainform_pk1, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(ainform_pk1))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(ainform_pk1)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ²", "Marginal R²", "Conditional R²"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "version1" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition1" ~ "Training\n (ref: no training)",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: PPI",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Also can use sequential model building techniques to infer effect sizes:
+
+#mixed(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
+
+```
+
+#### False Discovery Rate
+
+As this model found support for rejecting the null regarding the effect of both viewing a digital imprint and receiving training on persuasion knowledge, the p-values were adjusted to account for the multiple comparisons made during this analysis and ensure the robustness of the findings.
+
+```{r echo=FALSE, fig.align='center'}
+
+#p-values adjusted for false discovery rate
+
+# Extract p-values from the summary of the model
+p_vals <- summary(ainform_pk1)$coefficients[, "Pr(>|t|)"]
+
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
+
+# Create a data frame with original and adjusted p-values
+p_val_table <- data.frame(
+  Fixed_Effect = rownames(summary(ainform_pk1)$coefficients), 
+  Original_P_Value = p_vals,
+  Adjusted_P_Value = adjusted_p_vals,
+  row.names = NULL
+)
+
+# Round the p-values for better readability
+p_val_table <- p_val_table %>%
+  mutate(
+    Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
+  )
+
+# Rename row terms
+p_val_table <- p_val_table %>%
+  mutate(Fixed_Effect = case_when(
+    Fixed_Effect == "version1" ~ "Digital imprint viewed\n (ref: not viewed)",
+    Fixed_Effect == "Training.condition1" ~ "Training\n (ref: no training)",
+    TRUE ~ Fixed_Effect
+  ))
+
+# Format table
+
+p_val_table %>%
+  dplyr::select(Fixed_Effect, Original_P_Value, Adjusted_P_Value) %>%
+  kable(
+    caption = "Original and Adjusted p-Values for Fixed Effects",
+    col.names = c("Fixed Effect", "Original P-Value", "Adjusted P-Value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+#### Plot: Model Predictions
+
+```{r, echo=FALSE, fig.align='center'}
+
+#visualising the findings: model predictions
+
+# Generate predicted values using the ggeffects package
+preds <- ggpredict(ainform_pk1, terms = "version")
+
+ggplot(preds, aes(x = x, y = predicted)) +
+  geom_point() +  
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
+  labs(x = "Version of advert", y = "Predicted persuasion knowledge value (95% CI)", 
+       title = "Predicted effect of viewing an imprint on perceived persuasion knowledge") +
+  ylim(1, 7) +
+  theme_minimal()
+
+```
+
+#### Model Assumptions
+
+The assumptions checked below are as follows:
+
+- normality of residuals
+- variance of residuals
+- normality of residuals for each of the random effects (id and advert)
+
+```{r, echo=FALSE}
+
+# Check residuals for normality
+qqnorm(resid(ainform_pk1)) 
+qqline(resid(ainform_pk1))
+
+# variance of residuals
+df_residuals <- data.frame(fitted = fitted(ainform_pk1), residuals = resid(ainform_pk1))
+
+ggplot(df_residuals, aes(x = fitted, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, col = "red") +
+  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs Fitted Values")
+
+#checking for normal distribution of random effects
+
+ran_ef <- ranef(ainform_pk1, condVar = TRUE)
+
+id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
+advert_effects <- ran_ef$advert[,1] #and for advert
+
+ggplot(data.frame(effect = id_effects), aes(sample = effect)) +
+  geom_qq() +
+  geom_qq_line() +
+  xlab("Theoretical Quantiles") +
+  ylab("Sample Quantiles") +
+  ggtitle("QQ Plot of Random Effects for 'id'")
+
+ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
+  geom_qq() +
+  geom_qq_line() +
+  xlab("Theoretical Quantiles") +
+  ylab("Sample Quantiles") +
+  ggtitle("QQ Plot of Random Effects for 'advert'")
+
+# Perform Shapiro-Wilk tests
+shapiro_id <- shapiro.test(id_effects)
+shapiro_advert <- shapiro.test(advert_effects)
+
+# Create a data frame with the results
+shapiro_results <- data.frame(
+  Variable = c("id_effects", "advert_effects"),
+  W_Statistic = c(shapiro_id$statistic, shapiro_advert$statistic),
+  P_Value = c(shapiro_id$p.value, shapiro_advert$p.value)
+)
+
+#Formatting outcomes as a table
+shapiro_results %>%
+  mutate(W_Statistic = round(W_Statistic, 3), P_Value = round(P_Value, 3)) %>%
+  kable(caption = "Shapiro-Wilk Test Results for Normality") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
+  footnote(
+    general = "A p-value > 0.05 indicates the data is likely to be normally distributed. A p-value ≤ 0.05 suggests the data deviates from normality.",
+    general_title = "Note:"
+  )
+
+
+```
+
+### Outcome: Perceived advertisement {.tabset}
+
+*Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was an advertisement?*
+
+This model was not pre-registered, but would introduced on the back of construct validity checks supporting that the four items measuring PK were actually two seperate constructs.
+
+#### Plot: raw data
+
+```{r, echo=FALSE, warning=FALSE}
+
+#visualising: raw data
+
+ggplot(imprint_df, aes(x = factor(version), y = PA)) +
+  geom_jitter(width = 0.2, alpha = 0.5) +
+  geom_boxplot(width = 0.2) +
+  labs(x = "Version of advert", y = "Perceived Advertisement", title = "Distribution of persuasion knowledge by version of ad viewed") +
+  theme_minimal()
+
+#advert level differences
+
+imprint_df %>% 
+  ggplot(mapping = aes(x = factor(version), y = PA, colour = factor(advert))) +
+  geom_point() +
+  geom_jitter(alpha = 0.1) +
+  geom_smooth(mapping = aes(group = advert), method = "lm", se = FALSE, fullrange = TRUE) +
+  labs(y = "PA",
     colour = "Advert", x = "Version") +
   theme_minimal()
 
@@ -1753,25 +2203,25 @@ Theoretically feasible model structures:
  
 In this case, the final chosen model was structure 1. As can be seen below in the model variation comparisons, increasing model complexity with random slopes or the inclusion of interaction effects worsened the fit of the model when evaluated using AIC values. This strongly implies adding model complexity in the form of random slopes does not aid a valid estimation of effects in this case, likely due to the small effects of digital imprint version.
 
-```{r persuasion knowledge, echo=FALSE}
+```{r perceived advertisement, echo=FALSE}
 
 #ainform_pk <- lmer(PK ~ version + (1|id) + (1|advert), data = imprint_df)
 
 #issue with convergence for model below, used apex package to investigate, bobyqa was able to converge
 
-ainform_pk1 <- lmer(PK ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"))
+ainform_pk1 <- lmer(PA ~ version + Training.condition + (1 | id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"))
 
 #random slopes for version and advert
 
-ainform_pk2 <- lmer(PK ~ version + Training.condition + (1| id) + (1 + version|advert), data = imprint_df)
+ainform_pk2 <- lmer(PA ~ version + Training.condition + (1| id) + (1 + version|advert), data = imprint_df)
 
 # advert:version intercept vary
 
-ainform_pk3 <- lmer(PK ~ version + Training.condition + (1 | id) + (1|advert:version), data = imprint_df)
+ainform_pk3 <- lmer(PA ~ version + Training.condition + (1 | id) + (1|advert:version), data = imprint_df)
 
 # fixed effect interaction version and training
 
-ainform_pk4 <- lmer(PK ~ version*Training.condition + (1 | id) + (1|advert), data = imprint_df)
+ainform_pk4 <- lmer(PA ~ version*Training.condition + (1 | id) + (1|advert), data = imprint_df)
 
 #visualising the AIC comparisons
 aic_pk <- AIC(ainform_pk1)
@@ -1794,7 +2244,7 @@ aic_table <- data.frame(
 
 #create table
 aic_table %>%
-  kable(caption = "AIC Values and Variables: Persuasion Knowledge", escape = FALSE) %>%
+  kable(caption = "AIC Values and Variables: PA", escape = FALSE) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
@@ -1935,7 +2385,7 @@ ggplot(preds, aes(x = x, y = predicted)) +
   geom_point() +  
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
   labs(x = "Version of advert", y = "Predicted persuasion knowledge value (95% CI)", 
-       title = "Predicted effect of viewing an imprint on perceived persuasion knowledge") +
+       title = "Predicted effect of viewing an imprint on PA") +
   ylim(1, 7) +
   theme_minimal()
 
@@ -2640,11 +3090,34 @@ For this model, the inclusion of an interaction term was central to hypotheses 3
 
 informed_1 <- lmer(informed ~ Training.condition*version + (1|id) + (1|advert), data = imprint_df)
 
+#below is singular fit
+
 informed_2 <- lmer(informed ~ version*Training.condition + (1|id) + (version|advert), data = imprint_df)
 
 informed_3 <- lmer(informed ~ version*Training.condition + (1|id) + (1|advert:version), data = imprint_df)
 
-AIC(informed_1, informed_2, informed_3)
+# Define variable descriptions
+variables_1 <- "version*training + id (random intercept) + advert (random intercept)"
+variables_2 <- "version*training + id (random intercept) + (version & advert (random slope))"
+variables_3 <- "version*training + id (random intercept) + (advert:version (random intercepts vary))"
+
+#visualising the AIC comparisons
+aic_pin1 <- AIC(informed_1)
+aic_pin2 <- AIC(informed_2)
+aic_pin3 <- AIC(informed_3)
+
+# Create a data frame including all wanted information
+aic_table <- data.frame(
+  Variations = c("Structure 1", "Structure 2", "Structure 3"),
+  Variables = c(variables_1, variables_2, variables_3),
+  AIC = c(aic_pin1, aic_pin2, aic_pin3)
+)
+
+#create table
+aic_table %>%
+  kable(caption = "AIC Values and Variables: Perceived informedness", escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
 
 ```
 
@@ -2652,20 +3125,77 @@ AIC(informed_1, informed_2, informed_3)
 
 ```{r, echo=FALSE, fig.align='center'}
 
-#Visualising the findings: table
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(informed_1, effects = "fixed", conf.int = TRUE)
 
-inform_pi_tab <- tab_model(informed_1, 
-                           pred.labels = c("Intercept", "Digital Imprint 
-                                           included", "Training Condition", "Digital Imprint x Training Condition"),
-                           dv.labels = "Perceived Subjective\n Informedness", show.se = TRUE)
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(informed_1))
 
-inform_pi_tab
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(informed_1)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ²", "Marginal R²", "Conditional R²"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "Training.condition:version" ~ "Training*Version",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: perceived informedness",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
 
 ```
 
 #### False discovery rate
 
-```{r}
+```{r echo=FALSE, fig.align='center'}
 
 #p-values adjusted for false discovery rate
 
@@ -2675,8 +3205,38 @@ p_vals <- summary(informed_1)$coefficients[, "Pr(>|t|)"]
 # Adjust p-values using the Benjamini-Hochberg method for FDR
 adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
 
-# View the adjusted p-values
-adjusted_p_vals
+# Create a data frame with original and adjusted p-values
+p_val_table <- data.frame(
+  Fixed_Effect = rownames(summary(informed_1)$coefficients), 
+  Original_P_Value = p_vals,
+  Adjusted_P_Value = adjusted_p_vals,
+  row.names = NULL
+)
+
+# Round the p-values for better readability
+p_val_table <- p_val_table %>%
+  mutate(
+    Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
+  )
+
+# Rename row terms
+p_val_table <- p_val_table %>%
+  mutate(Fixed_Effect = case_when(
+    Fixed_Effect == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    Fixed_Effect == "Training.condition" ~ "Training\n (ref: no training)",
+    Fixed_Effect == "Training.condition:version" ~ "Training*Version",
+    TRUE ~ Fixed_Effect
+  ))
+
+# Format table
+p_val_table %>%
+  dplyr::select(Fixed_Effect, Original_P_Value, Adjusted_P_Value) %>%
+  kable(
+    caption = "Original and Adjusted p-Values for Fixed Effects",
+    col.names = c("Fixed Effect", "Original P-Value", "Adjusted P-Value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
@@ -2813,12 +3373,6 @@ Below shows the raw data distributions split by both experimental manipulations 
 
 ```{r, echo=FALSE, fig.align='center'}
 
-#mean scoring credibility
-
-imprint_df <- imprint_df %>%
-  rowwise() %>%
-  mutate(credible = mean(c(trustworthy_value, believable_value, accurate_value)))
-
 #the function below creates the same graph with a loop
 
 plot_outcomes <- function(data, outcomes) {
@@ -2835,9 +3389,7 @@ plot_outcomes <- function(data, outcomes) {
   }
 }
 
-outcomes <- c("credible", "factual_value")
-
-plot_outcomes(imprint_df, outcomes)
+plot_outcomes(imprint_df, "Credibility")
 
 ```
 
@@ -2849,42 +3401,164 @@ Pre-registered models:
 
 Models reported in paper:
 
-- model 5 <- lmer(credible ~ Training.condition + version + agree_value + Training.condition*version + (1|id) + (1|advert))
+- model 5 <- lmer(credibility ~ Training.condition + version + agree_value + Training.condition*version + (1|id) + (1|advert))
 
 Reason for divergence:
 
-- 
+- The variables loaded well onto an aggregated score which, following previous research, are used to measure perceptions of credibility.
 
-#### Model outcome: table
+#### Model fit metrics: AIC
 
-```{r, include=FALSE}
+For this model, the inclusion of an interaction term was central to hypotheses 4b. For this reason, only alternates in random effects structures are compared.
 
-#below is a function specifying the same model for each of the outcome variables
+```{r echo=FALSE}
 
-fit_trust_model <- function(data, outcomes) {
-  models <- list()
-  
-  for (outcome in outcomes) {
-    formula <- as.formula(paste(outcome, "~ Training.condition + version + agree_value + Training.condition*version + (1|id) + (1|advert)", sep = ""))
-    model <- lmer(formula, data = data)
-    models[[outcome]] <- model
-  }
-  
-  return(models)
-}
+#model variants in the results section
 
-outcomes <- c("credible", "factual_value")
-models <- fit_trust_model(imprint_df, outcomes)
+cred_1 <- lmer(Credibility ~ Training.condition*version + agree_value + (1|id) + (1|advert), data = imprint_df)
 
-for (outcome in names(models)) {
-  assign(paste("model", outcome, sep = "_"), models[[outcome]], envir = .GlobalEnv)
-}
+#singular fit for the one below
+
+cred_2 <- lmer(Credibility ~ version*Training.condition + agree_value + (1|id) + (version|advert), data = imprint_df)
+
+cred_3 <- lmer(Credibility ~ version*Training.condition + agree_value + (1|id) + (1|advert:version), data = imprint_df)
+
+#visualising the AIC comparisons
+aic_cred1 <- AIC(cred_1)
+aic_cred2 <- AIC(cred_2)
+aic_cred3 <- AIC(cred_3)
+
+# Create a data frame including all wanted information
+aic_table <- data.frame(
+  Variations = c("Structure 1", "Structure 2", "Structure 3"),
+  Variables = c(variables_1, variables_2, variables_3),
+  AIC = c(aic_cred1, aic_cred2, aic_cred3)
+)
+
+#create table
+aic_table %>%
+  kable(caption = "AIC Values and Variables: Credibility", escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
-```{r, echo=FALSE}
+#### Model outcome: table
 
-#add in table making code
+```{r echo=FALSE, fig.align='center'}
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(cred_1, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(cred_1))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(cred_1)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ²", "Marginal R²", "Conditional R²"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "Training.condition:version" ~ "Training*Version",
+    term == "agree_value" ~ "Agreement with campaign",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: persuasion knowledge",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+
+```
+
+#### False discovery rate
+
+```{r echo=FALSE, fig.align='center'}
+
+#p-values adjusted for false discovery rate
+
+# Extract p-values from the summary of the model
+p_vals <- summary(cred_1)$coefficients[, "Pr(>|t|)"]
+
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
+
+# Create a data frame with original and adjusted p-values
+p_val_table <- data.frame(
+  Fixed_Effect = rownames(summary(cred_1)$coefficients), 
+  Original_P_Value = p_vals,
+  Adjusted_P_Value = adjusted_p_vals,
+  row.names = NULL
+)
+
+# Round the p-values for better readability
+p_val_table <- p_val_table %>%
+  mutate(
+    Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
+  )
+
+# Rename row terms
+p_val_table <- p_val_table %>%
+  mutate(Fixed_Effect = case_when(
+    Fixed_Effect == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    Fixed_Effect == "Training.condition" ~ "Training\n (ref: no training)",
+    Fixed_Effect == "Training.condition:version" ~ "Training*Version",
+    TRUE ~ Fixed_Effect
+  ))
+
+# Format table
+p_val_table %>%
+  dplyr::select(Fixed_Effect, Original_P_Value, Adjusted_P_Value) %>%
+  kable(
+    caption = "Original and Adjusted p-Values for Fixed Effects",
+    col.names = c("Fixed Effect", "Original P-Value", "Adjusted P-Value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
@@ -2893,8 +3567,7 @@ for (outcome in names(models)) {
 ```{r, echo=FALSE, fig.align='center'}
 
 #use ggpredict to identify model estimates for plotting
-preds_credible <- ggpredict(model_credible, terms = c("Training.condition", "version"))
-preds_factual <- ggpredict(model_factual_value, terms = c("Training.condition", "version"))
+preds_credible <- ggpredict(cred_1, terms = c("Training.condition", "version"))
 
 #plot model estimates
 plot(preds_credible) +
@@ -2902,13 +3575,6 @@ plot(preds_credible) +
   labs(title = "Interaction Effect",
        x = "Training condition",
        y = "Predicted Credibility",
-       color = "Digital imprint \n included")
-
-plot(preds_factual) +
-  ylim(1, 7) +
-  labs(title = "Interaction Effect",
-       x = "Training condition",
-       y = "Predicted Factualness",
        color = "Digital imprint \n included")
 
 ```
@@ -2926,11 +3592,11 @@ Credible model:
 ```{r, echo=FALSE}
 
 # Check residuals for normality
-qqnorm(resid(model_credible)) 
-qqline(resid(model_credible))
+qqnorm(resid(cred_1)) 
+qqline(resid(cred_1))
 
 # Residual variance
-df_residuals <- data.frame(fitted = fitted(model_credible), residuals = resid(model_credible))
+df_residuals <- data.frame(fitted = fitted(cred_1), residuals = resid(cred_1))
 
 ggplot(df_residuals, aes(x = fitted, y = residuals)) +
   geom_point() +
@@ -2939,68 +3605,7 @@ ggplot(df_residuals, aes(x = fitted, y = residuals)) +
 
 #checking for normal distribution of random effects
 
-ran_ef <- ranef(model_credible, condVar = TRUE)
-
-id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
-advert_effects <- ran_ef$advert[,1] #and for advert
-
-ggplot(data.frame(effect = id_effects), aes(sample = effect)) +
-  geom_qq() +
-  geom_qq_line() +
-  xlab("Theoretical Quantiles") +
-  ylab("Sample Quantiles") +
-  ggtitle("QQ Plot of Random Effects for 'id'")
-
-ggplot(data.frame(effect = advert_effects), aes(sample = effect)) +
-  geom_qq() +
-  geom_qq_line() +
-  xlab("Theoretical Quantiles") +
-  ylab("Sample Quantiles") +
-  ggtitle("QQ Plot of Random Effects for 'advert'")
-
-# Perform Shapiro-Wilk tests
-shapiro_id <- shapiro.test(id_effects)
-shapiro_advert <- shapiro.test(advert_effects)
-
-# Create a data frame with the results
-shapiro_results <- data.frame(
-  Variable = c("id_effects", "advert_effects"),
-  W_Statistic = c(shapiro_id$statistic, shapiro_advert$statistic),
-  P_Value = c(shapiro_id$p.value, shapiro_advert$p.value)
-)
-
-#Formatting outcomes as a table
-
-shapiro_results %>%
-  mutate(W_Statistic = round(W_Statistic, 3), P_Value = round(P_Value, 3)) %>%
-  kable(caption = "Shapiro-Wilk Test Results for Normality") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
-  footnote(
-    general = "A p-value > 0.05 indicates the data is likely to be normally distributed. A p-value ≤ 0.05 suggests the data deviates from normality.",
-    general_title = "Note:"
-  )
-
-```
-
-Factual model:
-
-```{r, echo=FALSE}
-
-# Check residuals for normality
-qqnorm(resid(model_factual_value)) 
-qqline(resid(model_factual_value))
-
-# Residual variance
-df_residuals <- data.frame(fitted = fitted(model_factual_value), residuals = resid(model_factual_value))
-
-ggplot(df_residuals, aes(x = fitted, y = residuals)) +
-  geom_point() +
-  geom_hline(yintercept = 0, col = "red") +
-  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs Fitted Values")
-
-#checking for normal distribution of random effects
-
-ran_ef <- ranef(model_factual_value, condVar = TRUE)
+ran_ef <- ranef(cred_1, condVar = TRUE)
 
 id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
 advert_effects <- ran_ef$advert[,1] #and for advert

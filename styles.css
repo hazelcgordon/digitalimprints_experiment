@@ -37,3 +37,14 @@ img {
   height: auto;
 }
 </style>
+
+/* Adjust the floating TOC width and position */
+.tocify {
+    max-width: 280px; /* Set a maximum width for the TOC */
+    margin-right: 20px; /* Add spacing between TOC and text */
+}
+
+/* Ensure the main content doesn't overlap with the TOC */
+.container {
+    margin-left: 300px; /* Leave space for the TOC */
+}
