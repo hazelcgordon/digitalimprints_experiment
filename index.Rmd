@@ -2,7 +2,7 @@
 title: 'Digital Imprints Experiment'
 subtitle: 'Designed in collaboration with the Electoral Commission'
 author:
--   name: Prof Katharine Dommett, Prof Tom Stafford, Dr Junyan Zhu, Hazel Gordon
+-   name: Hazel Gordon, Prof Katharine Dommett, Prof Tom Stafford, Dr Junyan Zhu
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -880,14 +880,162 @@ library(psych)
 library(lattice)
 library(afex)
 library(stats)
+library(lavaan)
+library(lavaanPlot)
 
 ```
 
 </details>
 
-Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. The package 'MASS', 'Lavaan' and 'Laavanplot' are used in the final stage of the script. They is loaded later to avoid package conflicts with tidyverse/dplyr.
+Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. The package 'MASS' is used in the final stage of the script. They is loaded later to avoid package conflicts with tidyverse/dplyr.
 
 ## Pre-analysis Checks {.tabset}
+
+### Scale dimensionality
+
+The following scales are checked with a confirmatory factor analysis to assess whether there is evidence that they are best considered as contributing to a single latent factor:
+
+- Perceived informedness
+- PPI (perceived persuasive intent)
+- Credibility
+
+```{r}
+
+# Subset the items
+pin_subset <- imprint_df[, c("informed2_value", "informed3_value", "informed4_value")]
+
+# Assuming a single latent factor
+omega_pin <- omega(pin_subset, nfactors = 1, check.keys = TRUE)
+
+# Extract Omega Total
+omega_t <- round(omega_pin$omega.tot, 2)  # Round to 2 decimal places
+
+# Extract Factor Loadings and rename correctly
+factor_loadings <- round(omega_pin$schmid$sl[, 1], 2)
+names(factor_loadings) <- c("PIn item one", "PIn item two", "PIn item three")  # Ensure correct names
+
+# Compute Correlation Matrix
+cor_matrix <- round(cor(pin_subset), 2)
+
+# Define new names for the items
+item_names <- c("PIn item one", "PIn item two", "PIn item three")
+
+# Convert correlation matrix to a dataframe for kableExtra
+cor_table <- as.data.frame(cor_matrix)
+
+# Rename row and column names
+rownames(cor_table) <- item_names
+colnames(cor_table) <- item_names
+
+# Convert Factor Loadings into a dataframe and merge
+factor_loadings_df <- data.frame(Item = item_names, Factor_Loading = factor_loadings)
+
+# Convert correlation matrix into a long-format dataframe for merging
+cor_table <- cor_table %>%
+  mutate(Item = rownames(.)) %>%
+  left_join(factor_loadings_df, by = "Item") %>%  # Merge factor loadings
+  relocate(Item)  # Move "Item" column to the front
+
+# Print Table with kableExtra
+cor_table %>%
+  kable("html", caption = "Reliability Analysis: Correlations, Factor Loadings & Omega Total") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  add_footnote(label = paste("McDonald's Omega Total (Ωt) =", omega_t), notation = "none")
+
+```
+
+
+```{r echo=FALSE}
+
+#Checking the four measures
+#Using Lavaan to define the measures for inclusion in the model
+model <- '
+  credible_factor =~ trustworthy_value + accurate_value + believable_value + factual_value
+'
+
+#Using Lavaan to test the model fit 
+fit <- cfa(model, data = imprint_df)
+
+#Code that can be used to summarise the full model fit
+#summary(fit, fit.measures = TRUE, standardized = TRUE)
+
+#Displaying outcome as a table
+#Isolate fit measures as a vector
+fit_measures <- fitMeasures(fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
+
+#Turn into a dataframe for visualisation
+fit_measures_df <- data.frame(
+  Measure = names(fit_measures),
+  Value = as.numeric(fit_measures)
+)
+
+# Fit Measures Table
+fit_measures_df %>%
+  kable(caption = "Fit Measures for CFA Model with all 4 measures") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+#Create vector for individual measure loadings 
+loadings <- parameterEstimates(fit, standardized = TRUE)
+
+# Filter for factor loadings only
+loadings <- loadings[loadings$op == "=~", c("lhs", "rhs", "std.all")]
+
+colnames(loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
+
+# Factor Loadings Table
+loadings %>%
+  kable(caption = "Standardised Factor Loadings") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+It can be seen that the factual-opinionated measure does not load well onto the dimension, which in turn jeprodises the model fit of the dimension below conventional levels of acceptability. 
+
+The tables below repeat the above process, checking for the validity of the credible dimension with only the trustworthy, accuracy and believable values.
+
+```{r echo=FALSE}
+
+#Checking three measures
+#Using Lavaan to define the measures for inclusion in the model
+reduced_model <- '
+  credible_factor =~ trustworthy_value + accurate_value + believable_value
+'
+
+#Using Lavaan to test the model fit 
+reduced_fit <- cfa(reduced_model, data = imprint_df)
+
+#Summarising the model fit
+#summary(reduced_fit, fit.measures = TRUE, standardized = TRUE)
+
+#Displaying outcome as a table
+#Isolate fit measures as a vector
+reduced_fit_measures <- fitMeasures(reduced_fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
+
+#Turn into a dataframe for visualisation
+reduced_fit_measures_df <- data.frame(
+  Measure = names(reduced_fit_measures),
+  Value = as.numeric(reduced_fit_measures)
+)
+
+# Fit Measures Table
+reduced_fit_measures_df %>%
+  kable(caption = "Fit Measures for CFA Model with trustworthy, accuracy and believable measures") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+#Create vector for individual measure loadings 
+reduced_loadings <- parameterEstimates(reduced_fit, standardized = TRUE)
+
+# Filter for factor loadings only
+reduced_loadings <- reduced_loadings[reduced_loadings$op == "=~", c("lhs", "rhs", "std.all")]
+
+colnames(reduced_loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
+
+# Factor Loadings Table
+reduced_loadings %>%
+  kable(caption = "Standardised Factor Loadings") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
 
 ### Scale reliability
 
@@ -2659,110 +2807,6 @@ shapiro_results %>%
 
 *Did those informed about the purpose of imprints use their absence/presence to evaluate the trustworthiness/credibility of the posts?*
 
-#### Dimension validition
-
-Before testing these hypotheses, the dimensionalty of the four measures designed to capture perceptions of credibility. Used is a confirmatory factor analysis to assess if these measures are a good fit assuming one dimension exists. The metrics used in assessment are as follows:
-
-- 
-
-```{r echo=FALSE}
-
-library(lavaan)
-library(lavaanPlot)
-
-#Checking the four measures
-#Using Lavaan to define the measures for inclusion in the model
-model <- '
-  credible_factor =~ trustworthy_value + accurate_value + believable_value + factual_value
-'
-
-#Using Lavaan to test the model fit 
-fit <- cfa(model, data = imprint_df)
-
-#Code that can be used to summarise the full model fit
-#summary(fit, fit.measures = TRUE, standardized = TRUE)
-
-#Displaying outcome as a table
-#Isolate fit measures as a vector
-fit_measures <- fitMeasures(fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
-
-#Turn into a dataframe for visualisation
-fit_measures_df <- data.frame(
-  Measure = names(fit_measures),
-  Value = as.numeric(fit_measures)
-)
-
-# Fit Measures Table
-fit_measures_df %>%
-  kable(caption = "Fit Measures for CFA Model with all 4 measures") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-#Create vector for individual measure loadings 
-loadings <- parameterEstimates(fit, standardized = TRUE)
-
-# Filter for factor loadings only
-loadings <- loadings[loadings$op == "=~", c("lhs", "rhs", "std.all")]
-
-colnames(loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
-
-# Factor Loadings Table
-loadings %>%
-  kable(caption = "Standardised Factor Loadings") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-It can be seen that the factual-opinionated measure does not load well onto the dimension, which in turn jeprodises the model fit of the dimension below conventional levels of acceptability. 
-
-The tables below repeat the above process, checking for the validity of the credible dimension with only the trustworthy, accuracy and believable values.
-
-```{r echo=FALSE}
-
-#Checking three measures
-#Using Lavaan to define the measures for inclusion in the model
-reduced_model <- '
-  credible_factor =~ trustworthy_value + accurate_value + believable_value
-'
-
-#Using Lavaan to test the model fit 
-reduced_fit <- cfa(reduced_model, data = imprint_df)
-
-#Summarising the model fit
-#summary(reduced_fit, fit.measures = TRUE, standardized = TRUE)
-
-#Displaying outcome as a table
-#Isolate fit measures as a vector
-reduced_fit_measures <- fitMeasures(reduced_fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
-
-#Turn into a dataframe for visualisation
-reduced_fit_measures_df <- data.frame(
-  Measure = names(reduced_fit_measures),
-  Value = as.numeric(reduced_fit_measures)
-)
-
-# Fit Measures Table
-reduced_fit_measures_df %>%
-  kable(caption = "Fit Measures for CFA Model with trustworthy, accuracy and believable measures") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-#Create vector for individual measure loadings 
-reduced_loadings <- parameterEstimates(reduced_fit, standardized = TRUE)
-
-# Filter for factor loadings only
-reduced_loadings <- reduced_loadings[reduced_loadings$op == "=~", c("lhs", "rhs", "std.all")]
-
-colnames(reduced_loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
-
-# Factor Loadings Table
-reduced_loadings %>%
-  kable(caption = "Standardised Factor Loadings") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-
-```
-
-From this assessment, it was decided the three measures of trustworthy, accuracy and believable would be averaged into one 'credibility' factor, and the factual-opinionated measure would be tested seperately.
-
 #### Plot: raw data
 
 Below shows the raw data distributions split by both experimental manipulations (training and version) on the two key outcomes of interest.
@@ -3003,31 +3047,50 @@ shapiro_results %>%
 
 This section relates to the following section of analysis reported in the paper:
 
-*"Although not hypothesised for, we recognised that our data offered a useful opportunity to test the full mediation model of the effect of viewing a disclosure on perceptions of credibility through persuasion knowledge, a mechanism that has been of primary interest in this research field. It is important to note that this model is a simple mediation without the random effects thus does not account for the clustering in the data, so should be interpreted with caution. The mediation model was estimated using ‘lavaan’, with the latent structure of credibility (trustworthy, accurate and believable) as the outcome, version of the campaign material viewed as the predictor, and perceived persuasive intent as the mediator. The model indices indicated good model fit (CFI = 0.99, TLI = 0.98, RMSEA = 0.06, SRMR = 0.02). The direct path between version and credibility was estimated to be positive but not significant (B = 0.07, SE = 0.04, z = 0.91, p = 0.06). However, a significant indirect effect through PPI was negative and supported, with increased PPI associated with decreased perceptions of credibility (B = -0.03, SE = 0.01, z = -3.31, p<.001). Although significant, the effect size was small. For example, when viewing a digital imprint with the material, credibility was predicted to decrease by approximately 0.02 standard deviations through its effect on PPI."*
+THIS IS NOW WRONG *"Although not hypothesised for, we recognised that our data offered a useful opportunity to test the full mediation model of the effect of viewing a disclosure on perceptions of credibility through persuasion knowledge, a mechanism that has been of primary interest in this research field. It is important to note that this model is a simple mediation without the random effects thus does not account for the clustering in the data, so should be interpreted with caution. The mediation model was estimated using ‘lavaan’, with the latent structure of credibility (trustworthy, accurate and believable) as the outcome, version of the campaign material viewed as the predictor, and perceived persuasive intent as the mediator. The model indices indicated good model fit (CFI = 0.99, TLI = 0.98, RMSEA = 0.06, SRMR = 0.02). The direct path between version and credibility was estimated to be positive but not significant (B = 0.07, SE = 0.04, z = 0.91, p = 0.06). However, a significant indirect effect through PPI was negative and supported, with increased PPI associated with decreased perceptions of credibility (B = -0.03, SE = 0.01, z = -3.31, p<.001). Although significant, the effect size was small. For example, when viewing a digital imprint with the material, credibility was predicted to decrease by approximately 0.02 standard deviations through its effect on PPI."*
+
+As the dimensionality of the persuasion knowledge measures indicated the models loaded onto two separate factors, both were tested as a mediator for the association between version and credibility. The training condition is also included, due to its association with the persuasion knowledge variable.
+
+This supports that credibility is indirectly influenced by the presence of a digital imprint through persuasion knowledge, but only through 'formalising' the feel of a post into an advertisement, not through influencing the extent to which an individual recognises the post as trying to influence the self.
 
 ```{r echo=FALSE}
+
+# Convert factors to numeric (assuming 0 and 1 are the levels)
+imprint_df$version <- as.numeric(as.character(imprint_df$version))
+imprint_df$Training.condition <- as.numeric(as.character(imprint_df$Training.condition))
+
+# Create the interaction term
+imprint_df$interaction <- imprint_df$version * imprint_df$Training.condition
 
 mediate_PK <- '
   # Latent variable for credibility
   credibility =~ trustworthy_value + accurate_value + believable_value
   
+  # Latent variable for PK
+  latent_PK =~ PK1_value + PK3_value
+  
   # Direct effect
-  credibility ~ c*version
+  credibility ~ c1*version + c2*Training.condition + c3*interaction
   
   # Indirect effect (via PK)
-  PK ~ a*version
-  credibility ~ b*PK
+  latent_PK ~ a1*version + a2*Training.condition + a3*interaction
+  credibility ~ b*latent_PK
   
   # Indirect effect
-  indirect := a*b
+  indirect_version := a1*b
+  indirect_training := a2*b
+  indirect_interaction := a3*b
   
   # Total effect
-  total := c + (a*b)
+  total_version := c1 + (a1*b)
+  total_training := c2 + (a2*b)
+  total_interaction := c3 + (a3*b)
 '
 
-fit <- sem(mediate_PK, data = imprint_df)
+fit <- sem(mediate_PK, data = imprint_df,
+           estimator = "MLR", cluster = "id")
 
-summary(fit, standardized = TRUE, fit.measures = TRUE)
+summary(fit, fit.measures = TRUE)
 
 #plot
 
@@ -3037,7 +3100,7 @@ lavaanPlot(model = fit,
            stars = "regressions")
 ```
 
-## Hypothesis 4
+## Hypothesis 5
 
 ### Outcome: confidence in regulation {.tabset}
 
