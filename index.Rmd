@@ -1836,6 +1836,58 @@ shapiro_results %>%
 
 ```
 
+#### CLMM
+
+```{r echo=FALSE}
+
+# Outcome is changed into an ordinal categorical variable
+
+imprint_df$PG_value <- factor(imprint_df$PG_value, levels = c(1, 2, 3, 4, 5, 6, 7), ordered = TRUE)
+
+library(ordinal)
+library(MASS)
+library(brant)
+library(ggeffects)
+library(stats)
+
+clmm_PG <- clmm(PG_value ~ version + Training.condition + (1 | id) + (1 | advert), data = imprint_df, link = "logit")
+
+#checking the proportional odd assumption
+
+polr_PG <- polr(PG_value ~ version + Training.condition, data = imprint_df, method = "logistic")
+
+brant(polr_PG)
+
+pred <- ggeffect(clmm_PG, terms = "version")  # Get predicted probabilities
+ggplot(pred, aes(x = x, y = predicted, color = response.level)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(title = "Predicted Probabilities for PPI by Version",
+       x = "Version", y = "Predicted Probability") +
+  theme_minimal()
+
+# Extract fixed effects coefficients
+fixed_effects <- summary(clmm_PG)$coefficients %>%
+  as.data.frame() %>%
+  mutate(Odds_Ratio = exp(Estimate)) %>%
+  dplyr::select(Odds_Ratio, everything()) %>%
+  rename(Estimate = `Estimate`, Std_Error = `Std. Error`, Z_Value = `z value`, P_Value = `Pr(>|z|)`)
+
+# Format p-values for clarity
+fixed_effects$P_Value <- ifelse(fixed_effects$P_Value < 0.001, "< 0.001", round(fixed_effects$P_Value, 3))
+
+# Print table using kable
+kable(fixed_effects, digits = 3, format = "markdown", 
+      caption = "Table 1: Fixed Effects for Ordinal Mixed-Effects Model")
+
+#estimating the confidence interval for version
+
+confint(clmm_PG, parm = "version")
+
+
+```
+
+
 ### Outcome: Perceived persuasive intent PPI {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was trying to persuade them of a certain viewpoint?*
@@ -2037,8 +2089,8 @@ p_val_table <- data.frame(
 p_val_table <- p_val_table %>%
   mutate(
     Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
-    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
-  )
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3
+  ))
 
 # Rename row terms
 p_val_table <- p_val_table %>%
@@ -2146,6 +2198,69 @@ shapiro_results %>%
 
 ```
 
+#### Cumalitive Link Multi-level Model
+
+The previous assumption charts show severe violation regarding the normality of the residuals, due to the skew of the variable. This section will use various methods in an attempt to create a model where assumptions are more closely met, to ensure valid interpretations.
+
+It can be seen in the histogram this variable has a non-normal distribution, suggesting a non-parametric approach is more suitable. As the outcome increases in 0.5 increments, a cumulative link mixed-effects model (CLMM) is used to estimate the effects.
+
+```{r echo=FALSE, fig.align='center'}
+
+ggplot(imprint_df, aes(x = PPI)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of PPI", x = "PPI", y = "Density") +
+  theme_minimal()
+
+# Outcome is changed into an ordinal categorical variable
+
+imprint_df$PPI <- factor(imprint_df$PPI, levels = c(1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7), ordered = TRUE)
+
+clmm_model <- clmm(PPI ~ version + Training.condition + (1 | id) + (1 | advert), data = imprint_df, link = "logit")
+
+#checking the proportional odd assumption
+
+polr_model <- polr(PPI ~ version + Training.condition, data = imprint_df, method = "logistic")
+
+brant(polr_model)
+
+pred <- ggeffect(clmm_model, terms = "version")  # Get predicted probabilities
+ggplot(pred, aes(x = x, y = predicted, color = response.level)) +
+  geom_line(size = 1) +
+  geom_point(size = 2) +
+  labs(title = "Predicted Probabilities for PPI by Version",
+       x = "Version", y = "Predicted Probability") +
+  theme_minimal()
+
+# Extract fixed effects coefficients
+fixed_effects <- summary(clmm_model)$coefficients %>%
+  as.data.frame() %>%
+  mutate(Odds_Ratio = exp(Estimate)) %>%
+  dplyr::select(Odds_Ratio, everything()) %>%
+  rename(Estimate = `Estimate`, Std_Error = `Std. Error`, Z_Value = `z value`, P_Value = `Pr(>|z|)`)
+
+# Format p-values for clarity
+fixed_effects$P_Value <- ifelse(fixed_effects$P_Value < 0.001, "< 0.001", round(fixed_effects$P_Value, 3))
+
+# Print table using kable
+kable(fixed_effects, digits = 3, format = "markdown", 
+      caption = "Table 1: Fixed Effects for Ordinal Mixed-Effects Model")
+
+#estimating the confidence interval for version
+
+confint(clmm_model, parm = "version")
+
+# Extract raw p-values from the model
+raw_p_values <- summary(clmm_model)$coefficients[, "Pr(>|z|)"]
+
+# Apply FDR correction (Benjamini-Hochberg)
+adjusted_p_values <- p.adjust(raw_p_values, method = "fdr")
+
+# Display adjusted p-values
+adjusted_p_values
+
+```
+
+
 ### Outcome: Perceived advertisement {.tabset}
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was an advertisement?*
@@ -2155,6 +2270,13 @@ This model was not pre-registered, but would introduced on the back of construct
 #### Plot: raw data
 
 ```{r, echo=FALSE, warning=FALSE}
+
+#distribution
+
+ggplot(imprint_df, aes(x = PA)) +
+  geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of PA", x = "PA", y = "Density") +
+  theme_minimal()
 
 #visualising: raw data
 
