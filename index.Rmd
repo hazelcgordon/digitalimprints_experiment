@@ -899,7 +899,7 @@ The following scales are checked with a confirmatory factor analysis to assess w
 - PPI (perceived persuasive intent)
 - Credibility
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE}
 
 # Subset the items
 pin_subset <- imprint_df[, c("informed2_value", "informed3_value", "informed4_value")]
@@ -948,7 +948,7 @@ Perceived persuasive intent
 
 4 items
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE}
 
 # Subset the items
 ppi_subset <- imprint_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
@@ -993,7 +993,7 @@ cor_table %>%
 
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE}
 
 fa.parallel(ppi_subset)
 
@@ -1061,7 +1061,7 @@ print(paste("Omega Total for Factor 2 (MR2):", omega_t_MR2))
 
 Credibility
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE}
 
 # Subset the items
 cred_subset <- imprint_df[, c("trustworthy_value", "believable_value", "accurate_value", "factual_value")]
@@ -1107,7 +1107,7 @@ cor_table %>%
 ```
 
 
-```{r include=FALSE}
+```{r eval=FALSE, include=FALSE}
 
 #Checking the four measures
 #Using Lavaan to define the measures for inclusion in the model
@@ -1151,7 +1151,7 @@ loadings %>%
 
 ```
 
-```{r include=FALSE}
+```{r eval=FALSE, include=FALSE}
 
 #Checking three measures
 #Using Lavaan to define the measures for inclusion in the model
@@ -1432,6 +1432,42 @@ kable(percentage_df, "html", booktabs = TRUE, digits = 2,
 
 
 ```
+
+### Manipulation check
+
+The manipulation check was to check if the training condition successfully increased the attention paid to the disclosures during exposure to the experimental conditions. The two measures in the training_df dataframe of interest are:
+
+- recall_num: the number of digital imprints recalled (how many did you view on the four materials)
+- recall_correct: whether the correct answer of 'two' was selected
+
+It can be seen a majority of participants correctly selected two.
+
+```{r echo=FALSE}
+
+ggplot(data = training_df, aes(x = recall_num)) +
+  geom_bar() +
+  facet_wrap(~ Training.condition) +
+  theme_classic() +
+  labs(x = "Number of disclosures recalled")
+
+table(training_df$recall_correct, training_df$Training.condition)
+
+manipulation_check <- glm(recall_correct ~ Training.condition, family = binomial(link = "logit"), data = training_df)
+
+tab_model(manipulation_check)
+
+library(nnet)
+
+training_df$recall_num <- factor(training_df$recall_num, c("Not sure", "0", "1", "2", "3", "4"))
+
+manipulation_check2 <- multinom(recall_num ~ Training.condition, data = training_df)
+
+manipulation_table <- tab_model(manipulation_check2)
+
+manipulation_table
+
+```
+
 
 ### Knowledge of Regulation
 
