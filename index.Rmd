@@ -882,6 +882,9 @@ library(afex)
 library(stats)
 library(lavaan)
 library(lavaanPlot)
+library(ordinal)
+library(MASS)
+library(brant)
 
 ```
 
@@ -1012,7 +1015,7 @@ colnames(factor_loadings) <- c("Factor 1 (MR1)", "Factor 2 (MR2)")
 factor_loadings$Item <- rownames(factor_loadings)
 
 # Reorder columns so "Item" is first
-factor_loadings <- factor_loadings %>% select(Item, everything())
+factor_loadings <- factor_loadings %>% dplyr::select(Item, everything())
 
 # Extract Variance Explained Information
 variance_table <- data.frame(
@@ -1394,7 +1397,7 @@ Below shows the percentage recall for each of the campaigner names. As can be se
 #creating a percentage table for categorical predictor recall of the campaigner names
 
 percentages <- training_df %>%
-  select(CSC, BBA, SFI, CBB) %>%
+  dplyr::select(CSC, BBA, SFI, CBB) %>%
   mutate(across(.cols = everything(), .fns = ~as.numeric(as.character(.))))
 
 #calculate percentages for each
@@ -1414,7 +1417,7 @@ percentage_df$No_recall <- 100 - percentage_df$Recall.Percentage
 #removing the extra name column 
 
 percentage_df <- percentage_df %>%
-  select(-Name)
+  dplyr::select(-Name)
 
 #change the rownames
 
@@ -1450,11 +1453,17 @@ ggplot(data = training_df, aes(x = recall_num)) +
   theme_classic() +
   labs(x = "Number of disclosures recalled")
 
+#total numbers in each category for binary correct and incorrect recall
+
 table(training_df$recall_correct, training_df$Training.condition)
+
+#logistic regression by training condition
 
 manipulation_check <- glm(recall_correct ~ Training.condition, family = binomial(link = "logit"), data = training_df)
 
-tab_model(manipulation_check)
+manipulation <- tab_model(manipulation_check)
+
+manipulation
 
 library(nnet)
 
@@ -1467,7 +1476,6 @@ manipulation_table <- tab_model(manipulation_check2)
 manipulation_table
 
 ```
-
 
 ### Knowledge of Regulation
 
@@ -1879,12 +1887,6 @@ shapiro_results %>%
 # Outcome is changed into an ordinal categorical variable
 
 imprint_df$PG_value <- factor(imprint_df$PG_value, levels = c(1, 2, 3, 4, 5, 6, 7), ordered = TRUE)
-
-library(ordinal)
-library(MASS)
-library(brant)
-library(ggeffects)
-library(stats)
 
 clmm_PG <- clmm(PG_value ~ version + Training.condition + (1 | id) + (1 | advert), data = imprint_df, link = "logit")
 
@@ -2636,7 +2638,7 @@ Correct names:
 #the following code creates a new dataframe that matches the campaigner name - currently a binary variable in imprint_df specifying if the name was recalled - with the corresponding advert. This creates a new variable 'recall' so all responses can be analysed together.
 
 recall_df <- imprint_df %>%
-  select(id, advert, version, Training.condition, CSC, BBA, SFI, CBB) %>%
+  dplyr::select(id, advert, version, Training.condition, CSC, BBA, SFI, CBB) %>%
   mutate(
     CSC = as.integer(CSC),
     BBA = as.integer(BBA),
@@ -2651,7 +2653,7 @@ recall_df <- imprint_df %>%
   ))
 
 recall_df <- recall_df %>%
-  select(id, advert, version, recall, everything())
+  dplyr::select(id, advert, version, recall, everything())
 
 recall_df <- recall_df %>%
   mutate(recall = factor(recall - 1, levels = 0:1))
