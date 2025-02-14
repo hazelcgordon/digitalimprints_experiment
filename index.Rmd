@@ -890,7 +890,7 @@ library(brant)
 
 </details>
 
-Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. The package 'MASS' is used in the final stage of the script. They is loaded later to avoid package conflicts with tidyverse/dplyr.
+Above are the R packages used for analysis and visualisation. Please ensure you have these installed if you wish to knit the script. 
 
 ## Pre-analysis Checks {.tabset}
 
@@ -1109,95 +1109,6 @@ cor_table %>%
 
 ```
 
-
-```{r eval=FALSE, include=FALSE}
-
-#Checking the four measures
-#Using Lavaan to define the measures for inclusion in the model
-model <- '
-  credible_factor =~ trustworthy_value + accurate_value + believable_value + factual_value
-'
-
-#Using Lavaan to test the model fit 
-fit <- cfa(model, data = imprint_df)
-
-#Code that can be used to summarise the full model fit
-#summary(fit, fit.measures = TRUE, standardized = TRUE)
-
-#Displaying outcome as a table
-#Isolate fit measures as a vector
-fit_measures <- fitMeasures(fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
-
-#Turn into a dataframe for visualisation
-fit_measures_df <- data.frame(
-  Measure = names(fit_measures),
-  Value = as.numeric(fit_measures)
-)
-
-# Fit Measures Table
-fit_measures_df %>%
-  kable(caption = "Fit Measures for CFA Model with all 4 measures") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-#Create vector for individual measure loadings 
-loadings <- parameterEstimates(fit, standardized = TRUE)
-
-# Filter for factor loadings only
-loadings <- loadings[loadings$op == "=~", c("lhs", "rhs", "std.all")]
-
-colnames(loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
-
-# Factor Loadings Table
-loadings %>%
-  kable(caption = "Standardised Factor Loadings") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
-```{r eval=FALSE, include=FALSE}
-
-#Checking three measures
-#Using Lavaan to define the measures for inclusion in the model
-reduced_model <- '
-  credible_factor =~ trustworthy_value + accurate_value + believable_value
-'
-
-#Using Lavaan to test the model fit 
-reduced_fit <- cfa(reduced_model, data = imprint_df)
-
-#Summarising the model fit
-#summary(reduced_fit, fit.measures = TRUE, standardized = TRUE)
-
-#Displaying outcome as a table
-#Isolate fit measures as a vector
-reduced_fit_measures <- fitMeasures(reduced_fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
-
-#Turn into a dataframe for visualisation
-reduced_fit_measures_df <- data.frame(
-  Measure = names(reduced_fit_measures),
-  Value = as.numeric(reduced_fit_measures)
-)
-
-# Fit Measures Table
-reduced_fit_measures_df %>%
-  kable(caption = "Fit Measures for CFA Model with trustworthy, accuracy and believable measures") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-#Create vector for individual measure loadings 
-reduced_loadings <- parameterEstimates(reduced_fit, standardized = TRUE)
-
-# Filter for factor loadings only
-reduced_loadings <- reduced_loadings[reduced_loadings$op == "=~", c("lhs", "rhs", "std.all")]
-
-colnames(reduced_loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
-
-# Factor Loadings Table
-reduced_loadings %>%
-  kable(caption = "Standardised Factor Loadings") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-```
-
 ### Sample
 
 A representative sample option was used when collecting data from Prolific, matching UK census data for age, gender and ethnicity. The following table shows the make up of the sample for these demographics as well as education and political party identification, after exclusions.
@@ -1398,12 +1309,12 @@ Below shows the percentage recall for each of the campaigner names. As can be se
 
 percentages <- training_df %>%
   dplyr::select(CSC, BBA, SFI, CBB) %>%
-  mutate(across(.cols = everything(), .fns = ~as.numeric(as.character(.))))
+  mutate(across(.cols = everything(), .fns = ~as.numeric(as.character(.)))) 
 
 #calculate percentages for each
 recall_percentages <- colMeans(percentages) * 100
 # Calculate total recall percentage
-total_recall <- mean(rowMeans(percentages)) * 100
+total_recall <- mean(rowMeans(percentages), na.rm = TRUE) * 100
 
 percentage_table <- c(recall_percentages, Total = total_recall)
 
@@ -1428,11 +1339,25 @@ rownames(percentage_df) <- c("Common Sense Collective",
                              "Total")
 
 kable(percentage_df, "html", booktabs = TRUE, digits = 2, 
-      col.names = c("Name", "Recall %", "No recall %"), 
       caption = "Percentage of Participants Who Recalled Each Name") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
   column_spec(1, bold = TRUE)
 
+#getting it split by training and version
+
+# Calculate recall percentages by Training.condition and version
+percentages <- imprint_df %>%
+  group_by(Training.condition) %>%
+  summarise(
+    across(c(CSC, BBA, SFI, CBB), 
+           list(Recall = ~ sum(. == 1, na.rm = TRUE) / n() * 100,
+                No_Recall = ~ sum(. == 0, na.rm = TRUE) / n() * 100)
+          ),
+    .groups = "drop"
+  )
+
+# Print the final table with 8 values per campaigner name
+print(percentages)
 
 ```
 
@@ -1446,6 +1371,9 @@ The manipulation check was to check if the training condition successfully incre
 It can be seen a majority of participants correctly selected two.
 
 ```{r echo=FALSE}
+
+training_df$recall_num <- factor(training_df$recall_num, c("Not sure", "0", "1", "2", "3", "4"))
+training_df$recall_correct <- factor(training_df$recall_correct, c("incorrect", "correct"))
 
 ggplot(data = training_df, aes(x = recall_num)) +
   geom_bar() +
@@ -1467,13 +1395,17 @@ manipulation
 
 library(nnet)
 
-training_df$recall_num <- factor(training_df$recall_num, c("Not sure", "0", "1", "2", "3", "4"))
-
 manipulation_check2 <- multinom(recall_num ~ Training.condition, data = training_df)
 
 manipulation_table <- tab_model(manipulation_check2)
 
 manipulation_table
+
+randomisation <- glm(Training.condition ~ partyID + age + gender + education + Ethnicity.simplified, family = binomial(link = "logit"), data = training_df)
+
+rand_table <- tab_model(randomisation)
+
+rand_table
 
 ```
 
@@ -3573,6 +3505,10 @@ For this model, the inclusion of an interaction term was central to hypotheses 4
 
 ```{r echo=FALSE}
 
+#cred check
+
+cred <- lmer(Credibility ~ Training.condition + version + agree_value + (1|id) + (1|advert), data = imprint_df)
+
 #model variants in the results section
 
 cred_1 <- lmer(Credibility ~ Training.condition*version + agree_value + (1|id) + (1|advert), data = imprint_df)
@@ -3584,21 +3520,30 @@ cred_2 <- lmer(Credibility ~ version*Training.condition + agree_value + (1|id) +
 cred_3 <- lmer(Credibility ~ version*Training.condition + agree_value + (1|id) + (1|advert:version), data = imprint_df)
 
 #visualising the AIC comparisons
+aic_cred <- AIC(cred)
 aic_cred1 <- AIC(cred_1)
 aic_cred2 <- AIC(cred_2)
 aic_cred3 <- AIC(cred_3)
 
+# Define variable descriptions
+variables <- "version + training + agreement + id (random intercept) + advert (random intercept)"
+variables_1 <- "version*training + agreement + id (random intercept) + advert (random intercept)"
+variables_2 <- "version*training + agreement + id (random intercept) + (version & advert (random slope))"
+variables_3 <- "version*training + agreement + id (random intercept) + (advert:version (random intercepts vary))"
+
 # Create a data frame including all wanted information
 aic_table <- data.frame(
-  Variations = c("Structure 1", "Structure 2", "Structure 3"),
-  Variables = c(variables_1, variables_2, variables_3),
-  AIC = c(aic_cred1, aic_cred2, aic_cred3)
+  Variations = c("Structure 1", "Structure 2", "Structure 3", "Structure 4"),
+  Variables = c(variables, variables_1, variables_2, variables_3),
+  AIC = c(aic_cred, aic_cred1, aic_cred2, aic_cred3)
 )
 
 #create table
 aic_table %>%
   kable(caption = "AIC Values and Variables: Credibility", escape = FALSE) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+mixed(Credibility ~ Training.condition + version + Training.condition:version + (1|id) + (1|advert), data = imprint_df, control = lmerControl(optimizer = "bobyqa"), method = 'LRT')
 
 ```
 
@@ -3625,7 +3570,7 @@ r2_conditional <- model_metrics$R2_conditional
 
 # Convert model fit metrics into rows
 metric_rows <- tibble(
-  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ²", "Marginal R²", "Conditional R²"),
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ-squared", "Marginal R-squared", "Conditional R-squared"),
   estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
   std.error = NA,
   conf.low = NA,
@@ -3657,8 +3602,8 @@ fixed_effects <- fixed_effects %>%
 
 # Replace NA values with blank spaces
 fixed_effects <- fixed_effects %>%
-  mutate(across(everything(), as.character)) %>%  
-  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+  dplyr::mutate(across(everything(), as.character)) %>%  
+  dplyr::mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
 
 #visualising
 
@@ -3667,7 +3612,7 @@ fixed_effects %>%
     term, estimate, std.error, conf.low, conf.high, p.value
   ) %>%
   kable(
-    caption = "Outcome: persuasion knowledge",
+    caption = "Outcome: perceived credibility",
     col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
   ) %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
@@ -3722,26 +3667,142 @@ p_val_table %>%
 
 ```
 
+#### Model without interaction
+
+Below shows the specifics of the model with improved fit. AIC values and LRT indicated adding in an interaction term introduced overfitting. Without the interaction term, version is significant.
+
+```{r echo=FALSE}
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(cred, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(cred))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(cred)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ-squared", "Marginal R-squared", "Conditional R-squared"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "agree_value" ~ "Agreement with campaign",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  dplyr::mutate(across(everything(), as.character)) %>%  
+  dplyr::mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: perceived credibility",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+```{r echo=FALSE, fig.align='center'}
+
+#p-values adjusted for false discovery rate
+
+# Extract p-values from the summary of the model
+p_vals <- summary(cred)$coefficients[, "Pr(>|t|)"]
+
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
+
+# Create a data frame with original and adjusted p-values
+p_val_table <- data.frame(
+  Fixed_Effect = rownames(summary(cred)$coefficients), 
+  Original_P_Value = p_vals,
+  Adjusted_P_Value = adjusted_p_vals,
+  row.names = NULL
+)
+
+# Round the p-values for better readability
+p_val_table <- p_val_table %>%
+  mutate(
+    Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
+  )
+
+# Rename row terms
+p_val_table <- p_val_table %>%
+  mutate(Fixed_Effect = case_when(
+    Fixed_Effect == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    Fixed_Effect == "Training.condition" ~ "Training\n (ref: no training)",
+    TRUE ~ Fixed_Effect
+  ))
+
+# Format table
+p_val_table %>%
+  dplyr::select(Fixed_Effect, Original_P_Value, Adjusted_P_Value) %>%
+  kable(
+    caption = "Original and Adjusted p-Values for Fixed Effects",
+    col.names = c("Fixed Effect", "Original P-Value", "Adjusted P-Value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
 #### Plotting: model predictions
 
 ```{r, echo=FALSE, fig.align='center'}
 
 #use ggpredict to identify model estimates for plotting
-preds_credible <- ggpredict(cred_1, terms = c("Training.condition", "version"))
+preds_credible <- ggpredict(cred, terms = c("version"))
 
 #plot model estimates
 plot(preds_credible) +
   ylim(1, 7) +
-  labs(title = "Interaction Effect",
-       x = "Training condition",
-       y = "Predicted Credibility",
-       color = "Digital imprint \n included")
+  labs(title = "Effect of Viewing a Disclosure",
+       x = "Digital Imprint Included",
+       y = "Predicted Credibility")
 
 ```
 
 #### Assumptions
 
-Each model is checked for the following assumptions:
+Each model is checked for the following assumptions for the model without an interaction effect:
 
 - normality of residuals
 - equal variance of residuals
@@ -3752,11 +3813,11 @@ Credible model:
 ```{r, echo=FALSE}
 
 # Check residuals for normality
-qqnorm(resid(cred_1)) 
-qqline(resid(cred_1))
+qqnorm(resid(cred)) 
+qqline(resid(cred))
 
 # Residual variance
-df_residuals <- data.frame(fitted = fitted(cred_1), residuals = resid(cred_1))
+df_residuals <- data.frame(fitted = fitted(cred), residuals = resid(cred))
 
 ggplot(df_residuals, aes(x = fitted, y = residuals)) +
   geom_point() +
@@ -3765,7 +3826,7 @@ ggplot(df_residuals, aes(x = fitted, y = residuals)) +
 
 #checking for normal distribution of random effects
 
-ran_ef <- ranef(cred_1, condVar = TRUE)
+ran_ef <- ranef(cred, condVar = TRUE)
 
 id_effects <- ran_ef$id[,1]  # Extract random effects for 'id'
 advert_effects <- ran_ef$advert[,1] #and for advert
@@ -3812,11 +3873,97 @@ shapiro_results %>%
 
 This section relates to the following section of analysis reported in the paper:
 
-THIS IS NOW WRONG *"Although not hypothesised for, we recognised that our data offered a useful opportunity to test the full mediation model of the effect of viewing a disclosure on perceptions of credibility through persuasion knowledge, a mechanism that has been of primary interest in this research field. It is important to note that this model is a simple mediation without the random effects thus does not account for the clustering in the data, so should be interpreted with caution. The mediation model was estimated using ‘lavaan’, with the latent structure of credibility (trustworthy, accurate and believable) as the outcome, version of the campaign material viewed as the predictor, and perceived persuasive intent as the mediator. The model indices indicated good model fit (CFI = 0.99, TLI = 0.98, RMSEA = 0.06, SRMR = 0.02). The direct path between version and credibility was estimated to be positive but not significant (B = 0.07, SE = 0.04, z = 0.91, p = 0.06). However, a significant indirect effect through PPI was negative and supported, with increased PPI associated with decreased perceptions of credibility (B = -0.03, SE = 0.01, z = -3.31, p<.001). Although significant, the effect size was small. For example, when viewing a digital imprint with the material, credibility was predicted to decrease by approximately 0.02 standard deviations through its effect on PPI."*
-
 As the dimensionality of the persuasion knowledge measures indicated the models loaded onto two separate factors, both were tested as a mediator for the association between version and credibility. The training condition is also included, due to its association with the persuasion knowledge variable.
 
-This supports that credibility is indirectly influenced by the presence of a digital imprint through persuasion knowledge, but only through 'formalising' the feel of a post into an advertisement, not through influencing the extent to which an individual recognises the post as trying to influence the self.
+This supports that credibility is indirectly influenced by the presence of a digital imprint through persuasion knowledge, through 'formalising' the feel of a post into an advertisement.
+
+```{r echo=FALSE, warning=FALSE}
+
+#Checking the four measures
+#Using Lavaan to define the measures for inclusion in the model
+model <- '
+  credible_factor =~ trustworthy_value + accurate_value + believable_value + factual_value
+'
+
+#Using Lavaan to test the model fit 
+fit <- cfa(model, data = imprint_df)
+
+#Code that can be used to summarise the full model fit
+#summary(fit, fit.measures = TRUE, standardized = TRUE)
+
+#Displaying outcome as a table
+#Isolate fit measures as a vector
+fit_measures <- fitMeasures(fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
+
+#Turn into a dataframe for visualisation
+fit_measures_df <- data.frame(
+  Measure = names(fit_measures),
+  Value = as.numeric(fit_measures)
+)
+
+# Fit Measures Table
+fit_measures_df %>%
+  kable(caption = "Fit Measures for CFA Model with all 4 measures") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+#Create vector for individual measure loadings 
+loadings <- parameterEstimates(fit, standardized = TRUE)
+
+# Filter for factor loadings only
+loadings <- loadings[loadings$op == "=~", c("lhs", "rhs", "std.all")]
+
+colnames(loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
+
+# Factor Loadings Table
+loadings %>%
+  kable(caption = "Standardised Factor Loadings") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+
+#Checking three measures
+#Using Lavaan to define the measures for inclusion in the model
+reduced_model <- '
+  credible_factor =~ trustworthy_value + accurate_value + believable_value
+'
+
+#Using Lavaan to test the model fit 
+reduced_fit <- cfa(reduced_model, data = imprint_df)
+
+#Summarising the model fit
+#summary(reduced_fit, fit.measures = TRUE, standardized = TRUE)
+
+#Displaying outcome as a table
+#Isolate fit measures as a vector
+reduced_fit_measures <- fitMeasures(reduced_fit, c("chisq", "df", "pvalue", "rmsea", "cfi", "tli"))
+
+#Turn into a dataframe for visualisation
+reduced_fit_measures_df <- data.frame(
+  Measure = names(reduced_fit_measures),
+  Value = as.numeric(reduced_fit_measures)
+)
+
+# Fit Measures Table
+reduced_fit_measures_df %>%
+  kable(caption = "Fit Measures for CFA Model with trustworthy, accuracy and believable measures") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+#Create vector for individual measure loadings 
+reduced_loadings <- parameterEstimates(reduced_fit, standardized = TRUE)
+
+# Filter for factor loadings only
+reduced_loadings <- reduced_loadings[reduced_loadings$op == "=~", c("lhs", "rhs", "std.all")]
+
+colnames(reduced_loadings) <- c("Latent Variable", "Indicator", "Standardised Loading")
+
+# Factor Loadings Table
+reduced_loadings %>%
+  kable(caption = "Standardised Factor Loadings") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
 
 ```{r echo=FALSE}
 
@@ -3824,8 +3971,7 @@ This supports that credibility is indirectly influenced by the presence of a dig
 imprint_df$version <- as.numeric(as.character(imprint_df$version))
 imprint_df$Training.condition <- as.numeric(as.character(imprint_df$Training.condition))
 
-# Create the interaction term
-imprint_df$interaction <- imprint_df$version * imprint_df$Training.condition
+#create structure of SEM
 
 mediate_PK <- '
   # Latent variable for credibility
@@ -3835,21 +3981,42 @@ mediate_PK <- '
   latent_PK =~ PK1_value + PK3_value
   
   # Direct effect
-  credibility ~ c1*version + c2*Training.condition + c3*interaction
+  credibility ~ c1*version + c2*Training.condition
   
   # Indirect effect (via PK)
-  latent_PK ~ a1*version + a2*Training.condition + a3*interaction
+  latent_PK ~ a1*version + a2*Training.condition
   credibility ~ b*latent_PK
   
   # Indirect effect
   indirect_version := a1*b
   indirect_training := a2*b
-  indirect_interaction := a3*b
   
   # Total effect
   total_version := c1 + (a1*b)
   total_training := c2 + (a2*b)
-  total_interaction := c3 + (a3*b)
+'
+
+mediate_PK <- '
+  # Latent variable for credibility
+  credibility =~ trustworthy_value + accurate_value + believable_value
+  
+  # Latent variable for PK
+  latent_PK =~ PK1_value + PK3_value
+  
+  # Direct effects (including agreement as a covariate)
+  credibility ~ c1*version + c2*Training.condition + c3*agree_value
+  latent_PK ~ a1*version + a2*Training.condition + a3*agree_value
+  credibility ~ b*latent_PK
+  
+  # Indirect effects
+  indirect_version := a1*b
+  indirect_training := a2*b
+  indirect_agreement := a3*b
+  
+  # Total effects
+  total_version := c1 + (a1*b)
+  total_training := c2 + (a2*b)
+  total_agreement := c3 + (a3*b)
 '
 
 fit <- sem(mediate_PK, data = imprint_df,
@@ -3860,8 +4027,7 @@ summary(fit, fit.measures = TRUE)
 #plot
 
 lavaanPlot(model = fit, 
-           coefs = TRUE,           # Show coefficients
-           stand = TRUE,           # Standardized coefficients
+           coefs = TRUE,           # Show coefficients           
            stars = "regressions")
 ```
 
