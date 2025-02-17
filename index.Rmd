@@ -704,6 +704,13 @@ The code chunk below mean scores the persuasion knowledge items and the informed
 
 ```{r mean score PK and informed}
 
+#convert to numerical
+
+repeated_measures <- repeated_measures %>%
+  convert_to_numeric(c("PG_value", "agree_value", "trustworthy_value", "believable_value", "accurate_value", "factual_value"))
+
+#mean score
+
 repeated_measures <- repeated_measures %>%
   rowwise() %>%
   mutate(PK = mean(c(PK1_value, PK2_value, PK3_value, PK4_value)))
@@ -712,10 +719,22 @@ repeated_measures <- repeated_measures %>%
   rowwise() %>%
   mutate(informed = mean(c(informed2_value, informed3_value, informed4_value)))
 
+repeated_measures <- repeated_measures %>%
+  rowwise() %>%
+  mutate(PPI = mean(c(PK2_value, PK4_value)))
+
+repeated_measures <- repeated_measures %>%
+  rowwise() %>%
+  mutate(PA = mean(c(PK1_value, PK3_value)))
+
+repeated_measures <- repeated_measures %>%
+  rowwise() %>%
+  mutate(Credibility = mean(c(trustworthy_value, believable_value, accurate_value, factual_value)))
+
 #changing the order of columns
 
 repeated_measures <- repeated_measures %>%
-  select(id, Advert.1, Advert.2, Advert.3, Advert.4, advert, version, PK, informed, PG_value, agree_value, trustworthy_value, believable_value, accurate_value, factual_value, everything())
+  select(id, Advert.1, Advert.2, Advert.3, Advert.4, advert, version, PK, PPI, PA, informed, PG_value, agree_value, Credibility, trustworthy_value, believable_value, accurate_value, factual_value, everything())
 
 ```
 
@@ -742,7 +761,7 @@ imprint_df <- repeated_measures %>%
 #changing the order of columns
 
 imprint_df <- imprint_df %>%
-  select(id, Advert.1, Advert.2, Advert.3, Advert.4, Training.condition, advert, version, PK, informed, PG_value, agree_value, trustworthy_value, believable_value, accurate_value, factual_value, recall_num, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, political_interest, reg_know, SM_use, SM_frequency_1, partyID, age_sample, gender, education, Ethnicity.simplified, everything())
+  select(id, Advert.1, Advert.2, Advert.3, Advert.4, Training.condition, advert, version, PK, PPI, PA, informed, PG_value, agree_value, Credibility, trustworthy_value, believable_value, accurate_value, factual_value, recall_num, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, political_interest, reg_know, SM_use, SM_frequency_1, partyID, age_sample, gender, education, Ethnicity.simplified, everything())
 
 ```
 
@@ -757,9 +776,6 @@ The code below conducts the following transformations to the variables so they a
 
 imprint_df <- imprint_df %>%
   convert_to_factor(c("version", "advert"))
-
-imprint_df <- imprint_df %>%
-  convert_to_numeric(c("PG_value", "agree_value", "trustworthy_value", "believable_value", "accurate_value", "factual_value"))
 
 ```
 
@@ -1119,27 +1135,6 @@ A representative sample option was used when collecting data from Prolific, matc
 
 Below provides descriptive statistics for the key predictor and outcome variables. The first table lists the continuous measures in the repeated measures part of the experiment, and the second shows confidence in regulation, which was only measured once. As can be seen, perceived political goal was heavily skewed. This suggested the political nature of each post was easy for participants to infer. 
 
-```{r include=FALSE}
-
-#Creating PA score to be distinct from PPI
-
-imprint_df <- imprint_df %>%
-  rowwise() %>%
-  mutate(PPI = mean(c(PK2_value, PK4_value)))
-
-imprint_df <- imprint_df %>%
-  rowwise() %>%
-  mutate(PA = mean(c(PK1_value, PK3_value)))
-
-#mean scoring credibility
-
-imprint_df <- imprint_df %>%
-  rowwise() %>%
-  mutate(Credibility = mean(c(trustworthy_value, believable_value, accurate_value, factual_value)))
-
-```
-
-
 ```{r, echo=FALSE}
 
 # Function to calculate summary statistics
@@ -1401,7 +1396,7 @@ manipulation_table <- tab_model(manipulation_check2)
 
 manipulation_table
 
-randomisation <- glm(Training.condition ~ partyID + age + gender + education + Ethnicity.simplified, family = binomial(link = "logit"), data = training_df)
+randomisation <- glm(Training.condition ~ partyID + age_sample + gender + education + Ethnicity.simplified, family = binomial(link = "logit"), data = training_df)
 
 rand_table <- tab_model(randomisation)
 
@@ -1829,10 +1824,10 @@ polr_PG <- polr(PG_value ~ version + Training.condition, data = imprint_df, meth
 brant(polr_PG)
 
 pred <- ggeffect(clmm_PG, terms = "version")  # Get predicted probabilities
-ggplot(pred, aes(x = x, y = predicted, color = response.level)) +
-  geom_line(size = 1) +
+ggplot(pred, aes(x = as.numeric(as.character(x)), y = predicted, color = response.level, group = response.level)) +
+  geom_line(linewidth = 1) +  
   geom_point(size = 2) +
-  labs(title = "Predicted Probabilities for PPI by Version",
+  labs(title = "Predicted Probabilities for PA by Version",
        x = "Version", y = "Predicted Probability") +
   theme_minimal()
 
@@ -1852,7 +1847,7 @@ kable(fixed_effects, digits = 3, format = "markdown",
 
 #estimating the confidence interval for version
 
-confint(clmm_PG, parm = "version")
+confint(clmm_PG, method = "Wald")
 
 
 ```
@@ -2168,13 +2163,15 @@ shapiro_results %>%
 
 ```
 
-#### Cumalitive Link Multi-level Model
+#### CLMM
 
 The previous assumption charts show severe violation regarding the normality of the residuals, due to the skew of the variable. This section will use various methods in an attempt to create a model where assumptions are more closely met, to ensure valid interpretations.
 
 It can be seen in the histogram this variable has a non-normal distribution, suggesting a non-parametric approach is more suitable. As the outcome increases in 0.5 increments, a cumulative link mixed-effects model (CLMM) is used to estimate the effects.
 
-```{r echo=FALSE, fig.align='center'}
+The use of brant to check the proportional odds assumption gives an error message due to the small number of observations in some value of '1' which makes it difficult for the model to accurately compare these sets of observations. However, on eyeballing the graph that plots this assumption, it can be seen there is no clear violation (the lines do not cross).
+
+```{r echo=FALSE, fig.align='center', warning=FALSE}
 
 ggplot(imprint_df, aes(x = PPI)) +
   geom_histogram(binwidth = 0.5, fill = "lightblue", color = "black", alpha = 0.7) +
@@ -2194,8 +2191,8 @@ polr_model <- polr(PPI ~ version + Training.condition, data = imprint_df, method
 brant(polr_model)
 
 pred <- ggeffect(clmm_model, terms = "version")  # Get predicted probabilities
-ggplot(pred, aes(x = x, y = predicted, color = response.level)) +
-  geom_line(size = 1) +
+ggplot(pred, aes(x = as.numeric(as.character(x)), y = predicted, color = response.level, group = response.level)) +
+  geom_line(linewidth = 1) +  
   geom_point(size = 2) +
   labs(title = "Predicted Probabilities for PPI by Version",
        x = "Version", y = "Predicted Probability") +
@@ -2217,7 +2214,7 @@ kable(fixed_effects, digits = 3, format = "markdown",
 
 #estimating the confidence interval for version
 
-confint(clmm_model, parm = "version")
+confint(clmm_model, method = "Wald")
 
 # Extract raw p-values from the model
 raw_p_values <- summary(clmm_model)$coefficients[, "Pr(>|z|)"]
