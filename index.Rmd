@@ -898,6 +898,7 @@ library(afex)
 library(stats)
 library(lavaan)
 library(lavaanPlot)
+library(semTools)
 library(ordinal)
 library(MASS)
 library(brant)
@@ -910,218 +911,108 @@ Above are the R packages used for analysis and visualisation. Please ensure you 
 
 ## Pre-analysis Checks {.tabset}
 
-### Scale dimensionality
+### Scale validity and reliability
 
-The following scales are checked with a confirmatory factor analysis to assess whether there is evidence that they are best considered as contributing to a single latent factor:
+The underlying structures of the following scales are checked using a CFA from the package Lavaan and semTools following the advice from Flora (2020).
 
-- Perceived informedness
-- PPI (perceived persuasive intent)
+- Persuasion knowledge
 - Credibility
+- Perceived self-informedness
 
-```{r echo=FALSE, warning=FALSE}
+In assessing convergent validity, the guiding question is: Do these items appear to represent one latent construct? We used CFA factor loadings to assess this. Model fit indices are also important to check (Hair et al. 2014), however some model fit indices could not be investigated as there were not enough degrees of freedom in the model to test them (at least 4 items are needed). The models for perceived self-informedness, for example, were just-identified models. We therefore rely primarily on factor loadings.
+
+In assessing internal reliability, the guiding question is: Do the items tend to be answered in a consistent way when responded to together?
+A high alpha total suggests that the items reflect a common underlying construct and can therefore be combined into a composite score. 
+
+As we had so few items for each measure, we did not consider the assumption of tau-equivelence that underscores alpha to be an issue.
+
+Because the focus is on within-instance consistency (i.e., how participants respond to each set of items as a unit) the use of a repeated measures design and clustering (e.g., participant ID or stimulus type) does not interfere with this assessment.
+
+```{r long to wide CFA, include=FALSE, eval=FALSE}
+
+# Reshape to wide format, keeping only ID, advert, and the values
+wide_informed <- imprint_df %>%
+  select(id, advert, informed2_value, informed3_value, informed4_value) %>%
+  pivot_wider(
+    names_from = advert,
+    values_from = c(informed2_value, informed3_value, informed4_value)
+  )
+
+wide_pk <- imprint_df %>%
+  select(id, advert, PK1_value, PK2_value, PK3_value, PK4_value) %>%
+  pivot_wider(
+    names_from = advert,
+    values_from = c(PK1_value, PK2_value, PK3_value, PK4_value)
+  )
+
+wide_credible <- imprint_df %>%
+  select(id, advert, trustworthy_value, believable_value, accurate_value, factual_value) %>%
+  pivot_wider(
+    names_from = advert,
+    values_from = c(trustworthy_value, believable_value, accurate_value, factual_value)
+  )
+
+```
+
+```{r cfa, warning=FALSE, echo=FALSE}
 
 # Subset the items
 pin_subset <- imprint_df[, c("informed2_value", "informed3_value", "informed4_value")]
 
-# Assuming a single latent factor
-omega_pin <- omega(pin_subset, nfactors = 1, check.keys = TRUE)
+pk_subset <- imprint_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
 
-# Extract Omega Total
-omega_t <- round(omega_pin$omega.tot, 2)  # Round to 2 decimal places
-
-# Extract Factor Loadings and rename correctly
-factor_loadings <- round(omega_pin$schmid$sl[, 1], 2)
-names(factor_loadings) <- c("PIn item one", "PIn item two", "PIn item three")  # Ensure correct names
-
-# Compute Correlation Matrix
-cor_matrix <- round(cor(pin_subset), 2)
-
-# Define new names for the items
-item_names <- c("PIn item one", "PIn item two", "PIn item three")
-
-# Convert correlation matrix to a dataframe for kableExtra
-cor_table <- as.data.frame(cor_matrix)
-
-# Rename row and column names
-rownames(cor_table) <- item_names
-colnames(cor_table) <- item_names
-
-# Convert Factor Loadings into a dataframe and merge
-factor_loadings_df <- data.frame(Item = item_names, Factor_Loading = factor_loadings)
-
-# Convert correlation matrix into a long-format dataframe for merging
-cor_table <- cor_table %>%
-  mutate(Item = rownames(.)) %>%
-  left_join(factor_loadings_df, by = "Item") %>%  # Merge factor loadings
-  relocate(Item)  # Move "Item" column to the front
-
-# Print Table with kableExtra
-cor_table %>%
-  kable("html", caption = "Reliability Analysis: Correlations, Factor Loadings & Omega Total") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
-  add_footnote(label = paste("McDonald's Omega Total (Ωt) =", omega_t), notation = "none")
-
-```
-
-Perceived persuasive intent
-
-4 items
-
-```{r echo=FALSE, warning=FALSE}
-
-# Subset the items
-ppi_subset <- imprint_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
-
-# Assuming a single latent factor
-omega_ppi <- omega(ppi_subset, nfactors = 1)
-
-# Extract Omega Total
-omega_t <- round(omega_ppi$omega.tot, 2)  # Round to 2 decimal places
-
-# Extract Factor Loadings and rename correctly
-factor_loadings <- round(omega_ppi$schmid$sl[, 1], 2)
-names(factor_loadings) <- c("PPI item one", "PPI item two", "PPI item three", "PPI item four")  # Ensure correct names
-
-# Compute Correlation Matrix
-cor_matrix <- round(cor(ppi_subset), 2)
-
-# Define new names for the items
-item_names <- c("PPI item one", "PPI item two", "PPI item three", "PPI item four")
-
-# Convert correlation matrix to a dataframe for kableExtra
-cor_table <- as.data.frame(cor_matrix)
-
-# Rename row and column names
-rownames(cor_table) <- item_names
-colnames(cor_table) <- item_names
-
-# Convert Factor Loadings into a dataframe and merge
-factor_loadings_df <- data.frame(Item = item_names, Factor_Loading = factor_loadings)
-
-# Convert correlation matrix into a long-format dataframe for merging
-cor_table <- cor_table %>%
-  mutate(Item = rownames(.)) %>%
-  left_join(factor_loadings_df, by = "Item") %>%  # Merge factor loadings
-  relocate(Item)  # Move "Item" column to the front
-
-# Print Table with kableExtra
-cor_table %>%
-  kable("html", caption = "Reliability Analysis: Correlations, Factor Loadings & Omega Total") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
-  add_footnote(label = paste("McDonald's Omega Total (Ωt) =", omega_t), notation = "none")
-
-```
-
-```{r echo=FALSE, warning=FALSE}
-
-fa.parallel(ppi_subset)
-
-# Using an exploratory factor analysis, oblimin used as factors expected to be related
-fa_results <- fa(ppi_subset, nfactors = 2, rotate = "oblimin")
-print(fa_results$loadings, cutoff = 0.30)
-
-# Extract Factor Loadings
-factor_loadings <- as.data.frame(unclass(fa_results$loadings)) %>%
-  round(2)  # Round to 2 decimal places
-
-# Rename columns for readability
-colnames(factor_loadings) <- c("Factor 1 (MR1)", "Factor 2 (MR2)")
-
-# Add Item names
-factor_loadings$Item <- rownames(factor_loadings)
-
-# Reorder columns so "Item" is first
-factor_loadings <- factor_loadings %>% dplyr::select(Item, everything())
-
-# Extract Variance Explained Information
-variance_table <- data.frame(
-  Factor = c("Factor 1 (MR1)", "Factor 2 (MR2)", "Total"),
-  SS_Loadings = c(fa_results$Vaccounted["SS loadings", 1:2], sum(fa_results$Vaccounted["SS loadings", 1:2])),
-  Proportion_Variance = c(fa_results$Vaccounted["Proportion Var", 1:2], sum(fa_results$Vaccounted["Proportion Var", 1:2])),
-  Cumulative_Variance = c(fa_results$Vaccounted["Cumulative Var", 1:2], NA)
-) 
-
-# Apply rounding only to numeric columns
-variance_table[, 2:4] <- round(variance_table[, 2:4], 2)
-
-# Remove row names to avoid redundant first column
-rownames(variance_table) <- NULL
-rownames(factor_loadings) <- NULL
-
-# Print the table using kableExtra
-variance_table %>%
-  kable("html", caption = "Variance Explained by Factors") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
-
-# Print Factor Loadings Table
-factor_loadings %>%
-  kable("html", caption = "Factor Loadings from EFA") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
-
-# Subset items based on factor loadings
-ppi_subset_MR1 <- ppi_subset[, c("PK1_value", "PK3_value")]  # Factor 1
-ppi_subset_MR2 <- ppi_subset[, c("PK2_value", "PK4_value")]  # Factor 2
-
-# Compute Omega Total for Factor 1
-omega_MR1 <- omega(ppi_subset_MR1, nfactors = 1, check.keys = TRUE)
-
-# Compute Omega Total for Factor 2
-omega_MR2 <- omega(ppi_subset_MR2, nfactors = 1, check.keys = TRUE)
-
-# Extract Omega Total Values
-omega_t_MR1 <- round(omega_MR1$omega.tot, 2)
-omega_t_MR2 <- round(omega_MR2$omega.tot, 2)
-
-# Print Omega Total Results
-print(paste("Omega Total for Factor 1 (MR1):", omega_t_MR1))
-print(paste("Omega Total for Factor 2 (MR2):", omega_t_MR2))
-
-```
-
-Credibility
-
-```{r echo=FALSE, warning=FALSE}
-
-# Subset the items
 cred_subset <- imprint_df[, c("trustworthy_value", "believable_value", "accurate_value", "factual_value")]
 
-# Assuming a single latent factor
-omega_cred <- omega(cred_subset, nfactors = 1, check.keys = TRUE)
+#perceived self-informedness
+#with only 3 items, this is a just identified model so model fit indices cannot be checked. Instead, factor loadings are inspected.
 
-# Extract Omega Total
-omega_t <- round(omega_cred$omega.tot, 2)  # Round to 2 decimal places
+cfa_informed <- 'informed =~ informed2_value + informed3_value + informed4_value'
 
-# Extract Factor Loadings and rename correctly
-factor_loadings <- round(omega_cred$schmid$sl[, 1], 2)
-names(factor_loadings) <- c("Trustworthy", "Believable", "Accurate", "Factual")  # Ensure correct names
+fit_informed <- cfa(cfa_informed, data=pin_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
 
-# Compute Correlation Matrix
-cor_matrix <- round(cor(cred_subset), 2)
+summary(fit_informed, fit.measures=T)
 
-# Define new names for the items
-item_names <- c("Trustworthy", "Believable", "Accurate", "Factual")
+reliability(fit_informed)
 
-# Convert correlation matrix to a dataframe for kableExtra
-cor_table <- as.data.frame(cor_matrix)
+#persuasion knowledge
 
-# Rename row and column names
-rownames(cor_table) <- item_names
-colnames(cor_table) <- item_names
+cfa_pk <- 'pk =~ PK1_value + PK2_value + PK3_value + PK4_value'
 
-# Convert Factor Loadings into a dataframe and merge
-factor_loadings_df <- data.frame(Item = item_names, Factor_Loading = factor_loadings)
+fit_pk <- cfa(cfa_pk, data=pk_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
 
-# Convert correlation matrix into a long-format dataframe for merging
-cor_table <- cor_table %>%
-  mutate(Item = rownames(.)) %>%
-  left_join(factor_loadings_df, by = "Item") %>%  # Merge factor loadings
-  relocate(Item)  # Move "Item" column to the front
+summary(fit_pk, fit.measures=T)
 
-# Print Table with kableExtra
-cor_table %>%
-  kable("html", caption = "Reliability Analysis: Correlations, Factor Loadings & Omega Total") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
-  add_footnote(label = paste("McDonald's Omega Total (Ωt) =", omega_t), notation = "none")
+reliability(fit_pk)
+
+standardizedSolution(fit_pk)
+
+#dropping items 2 and 4
+
+cfa_pk_reduced <- 'pk =~ PK1_value + PK3_value'
+
+fit_pk_reduced <- cfa(cfa_pk_reduced, data=pk_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
+
+reliability(fit_pk_reduced)
+
+#credibility
+
+cfa_credible <- 'credible =~ trustworthy_value + believable_value + accurate_value + factual_value'
+
+fit_credible <- cfa(cfa_credible, data=cred_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
+
+summary(fit_credible, fit.measures=T)
+
+reliability(fit_credible)
+
+standardizedSolution(fit_credible)
 
 ```
 
@@ -1377,6 +1268,10 @@ ggplot(data = training_df, aes(x = recall_num)) +
   labs(x = "Number of disclosures recalled")
 
 #total numbers in each category for binary correct and incorrect recall
+
+recall_perc <- table(training_df$recall_num, training_df$Training.condition)
+column_percent <- prop.table(recall_perc, margin = 2) * 100
+round(column_percent, 1)
 
 table(training_df$recall_correct, training_df$Training.condition)
 
