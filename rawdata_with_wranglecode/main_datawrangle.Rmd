@@ -139,7 +139,7 @@ reverse_code <- function(response) {
   return(as.numeric(names(mapping)[match(response, mapping)]))
 }
 
-#NOTE ERROR IN PREREGISTERED SURVEY THAT INCLUDED THE WRONG VERSION OF 'INFORMED, ITEM 4' (in the final survey, this item was reworded to be positvely phrased, so only informed, item 3 required reverse scoring)
+#NOTE ERROR IN PREREGISTERED SURVEY THAT INCLUDED THE WRONG VERSION OF 'INFORMED, ITEM 4' (in the final survey, this item was reworded to be positively phrased, so only informed, item 3 required reverse scoring)
 
 data <- data %>%
   mutate(across(c(informed_1_3, informed_1imprint_3, informed_2_3, informed_2imprint_3, informed_3_3, informed_3imprint_3, informed_4_3, informed_4imprint_3), ~reverse_code(.x)))
@@ -676,12 +676,15 @@ repeated_measures <- repeated_measures %>%
 
 repeated_measures <- repeated_measures %>%
   rowwise() %>%
-  mutate(informed = mean(c(informed2_value, informed3_value, informed4_value)))
-
-#changing the order of columns
+  mutate(PK_advert = mean(c(PK1_value, PK3_value)))
 
 repeated_measures <- repeated_measures %>%
-  select(id, Advert.1, Advert.2, Advert.3, Advert.4, advert, version, PK, informed, PG_value, agree_value, trustworthy_value, believable_value, accurate_value, factual_value, everything())
+  rowwise() %>%
+  mutate(informed = mean(c(informed2_value, informed3_value, informed4_value)))
+
+repeated_measures <- repeated_measures %>%
+  rowwise() %>%
+  mutate(credibility = mean(c(trustworthy_value, believable_value, accurate_value, factual_value)))
 
 ```
 
@@ -708,7 +711,7 @@ imprint_df <- repeated_measures %>%
 #changing the order of columns
 
 imprint_df <- imprint_df %>%
-  select(id, Advert.1, Advert.2, Advert.3, Advert.4, Training.condition, advert, version, PK, informed, PG_value, agree_value, trustworthy_value, believable_value, accurate_value, factual_value, recall_num, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, political_interest, reg_know, SM_use, SM_frequency_1, partyID, age, gender, education, Ethnicity.simplified, everything())
+  select(id, Advert.1, Advert.2, Advert.3, Advert.4, Training.condition, advert, version, PK_advert, credibility, informed, agree_value, recall_num, recall_correct, CSC, BBA, SFI, CBB, FF, TPM, VFP, AT, political_interest, reg_know, SM_use, SM_frequency_1, partyID, age, gender, education, Ethnicity.simplified, everything())
 
 ```
 
@@ -725,7 +728,7 @@ imprint_df <- imprint_df %>%
   convert_to_factor(c("version", "advert"))
 
 imprint_df <- imprint_df %>%
-  convert_to_numeric(c("PG_value", "agree_value", "trustworthy_value", "believable_value", "accurate_value", "factual_value"))
+  convert_to_numeric(c("PG_value", "agree_value", "trustworthy_value", "believable_value", "accurate_value", "factual_value", "credibility", "PK", "PK_advert"))
 
 ```
 
