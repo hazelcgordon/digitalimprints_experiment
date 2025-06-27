@@ -1,0 +1,987 @@
+---
+title: "Main Paper Analysis"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(lavaan)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(performance)
+library(knitr)
+library(kableExtra)
+library(broom)
+library(broom.mixed)
+library(psych)
+library(afex)
+library(stats)
+
+```
+
+This is the main analysis code for all models reported in the main paper, including the generation of effect sizes and equivalence testing. Please ensure you have the data frames 'mixedeffect_df.csv' and 'betweenmeasures_df.csv' downloaded from the OSF project. This code will look for these files in a folder named 'OSF_data'.
+
+Alternatively, you can download 'main_data.csv' and use the 'main_datawrangle.Rmd' document to wrangle the data yourself, or to check the data processing code.
+
+A knitted version of this file is available in the OSF project folder under 'main_analysis_processed.pdf'.
+
+## Reading in the data files
+
+This will use the here package.
+
+```{r reading data}
+
+mixedeffect_df <- read.csv(here("OSF_data", "mixedeffect_df.csv"))
+betweenmeasure_df <- read.csv(here("OSF_data", "betweenmeasures_df.csv"))
+
+```
+
+## Randomisation checks
+
+Below shows the successful randomisation across the training conditions (between measures).
+
+```{r transforming variables, include=FALSE}
+
+# converting demographic variables into factors for analysis
+
+#gender, female as reference
+
+gender_response_order <- c("Female", "Male", "Non-binary / third gender", "Prefer not to say")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(gender, ~factor(.x, levels = gender_response_order)))
+
+#Education level, postgrad as reference
+
+ed_response_order <- c("Postgraduate (e.g. M.Sc, Ph.D)", "Undergraduate University (e.g. BA, B.Sc, B.Ed)", "A-level, or equivalent", "GCSE level, or equivalent", "Other, please specify", "No formal qualifications")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(education, ~factor(.x, levels = ed_response_order)))
+
+#partyID, Labour as reference
+
+party_response_order <- c("Labour", "Conservative", "Liberal Democrat", "Reform UK", "United Kingdom Independence Party (UKIP)", "Green Party", "Scottish National Party (SNP)", "Plaid Cymru", "Sinn Féin", "Democratic Unionist Party", "Alliance Party", "Other, please specify___________", "I do not identify with any political party")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(partyID, ~factor(.x, levels = party_response_order)))
+
+#ethnicity
+
+ethnicity_response_order <- c("White", "Black", "Asian", "Mixed", "Other")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(Ethnicity.simplified, ~factor(.x, levels = ethnicity_response_order)))
+
+# political interest
+
+betweenmeasure_df$political_interest <- as.numeric(betweenmeasure_df$political_interest)
+
+# age
+
+betweenmeasure_df$age <- as.numeric(betweenmeasure_df$age)
+
+```
+
+```{r randomisation, warning=FALSE, echo=FALSE}
+
+# Set up a results list
+results <- list()
+
+# Age (numerical)
+tt_age <- t.test(age ~ Training.condition, data = betweenmeasure_df)
+results[["Age"]] <- c(
+  Test = "t-test",
+  Statistic = round(tt_age$statistic, 2),
+  p_value = round(tt_age$p.value, 3)
+)
+
+# Political interest (numerical)
+tt_pi <- t.test(political_interest ~ Training.condition, data = betweenmeasure_df)
+results[["Political interest"]] <- c(
+  Test = "t-test",
+  Statistic = round(tt_pi$statistic, 2),
+  p_value = round(tt_pi$p.value, 3)
+)
+
+# Gender (categorical, chi-squared)
+tab_gender <- table(betweenmeasure_df$gender, betweenmeasure_df$Training.condition)
+chi_gender <- chisq.test(tab_gender)
+results[["Gender"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_gender$statistic, 2),
+  p_value = round(chi_gender$p.value, 3)
+)
+
+# Education (categorical, chi-squared)
+tab_edu <- table(betweenmeasure_df$education, betweenmeasure_df$Training.condition)
+chi_edu <- chisq.test(tab_edu)
+results[["Education"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_edu$statistic, 2),
+  p_value = round(chi_edu$p.value, 3)
+)
+
+# Party ID (categorical, chi-squared)
+tab_party <- table(betweenmeasure_df$partyID, betweenmeasure_df$Training.condition)
+chi_party <- chisq.test(tab_party)
+results[["Party ID"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_party$statistic, 2),
+  p_value = round(chi_party$p.value, 3)
+)
+
+# Ethnicity (categorical, chi-squared)
+tab_eth <- table(betweenmeasure_df$Ethnicity.simplified, betweenmeasure_df$Training.condition)
+chi_eth <- chisq.test(tab_eth)
+results[["Ethnicity"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_eth$statistic, 2),
+  p_value = round(chi_eth$p.value, 3)
+)
+
+# Convert to a data frame
+results_df <- as.data.frame(do.call(rbind, results))
+
+# show table
+kable(results_df, caption = "Randomisation Check Across Demographics")
+
+```
+
+## Manipulation check
+
+Below shows where in the ranking participants tended to rate 'voters' when asked who the digital imprint information was most useful for. 
+
+```{r useful manipulation check, echo=FALSE}
+
+#set as factor
+betweenmeasure_df$useful_rank_1 <- as.factor(betweenmeasure_df$useful_rank_1)
+
+betweenmeasure_df$useful_rank_1 <- factor(betweenmeasure_df$useful_rank_1, levels = c("6", "5", "4", "3", "2", "1"))
+
+# Calculate the counts and percentages
+useful_plot <- betweenmeasure_df %>%
+  group_by(Training.condition, useful_rank_1) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+
+#create plot
+
+useful <- ggplot(useful_plot, aes(x = useful_rank_1, y = Count, fill = as.factor(Training.condition))) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_dodge(width = 0.6), 
+           vjust = 0.5,
+           hjust = -0.1,
+            size = 3) +  # Add percentage labels above bars
+  scale_fill_brewer(palette = "Paired",
+                    labels = c("No Training", "Trained")) +
+  labs(title = "Response option: 'Voters, to understand who is responsible for the campaign material'",
+       x = "Rank Position",  
+       y = "Count") +   
+  facet_wrap(~ Training.condition, 
+             labeller = labeller(Training.condition = c('0' = 'No Training', '1' = 'Training'))) +  # Facet labels
+  theme_minimal() +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        title = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10)) +
+  coord_flip() +
+  expand_limits(y = max(useful_plot$Count) * 1.1) +
+  theme(aspect.ratio = 1/1.75)
+
+useful
+
+```
+
+```{r wilcoxin signed rank}
+
+# Wilcoxon signed-rank test for overall distribution of rank
+
+betweenmeasure_df$useful_rank_1_num <- as.numeric(as.character(betweenmeasure_df$useful_rank_1))
+
+wilcox.test(useful_rank_1_num ~ Training.condition, data = betweenmeasure_df, 
+            alternative = "two.sided", exact = FALSE)
+
+```
+
+## Equivalence test function
+
+Below creates a function for a two sided equivalence test (TOST) for main effects. It both calculates effect size using cohen's d, using the 90% CI, and then tests each bound for equivalence.
+
+This code is manually created rather than using pre-existing packages (such as TOSTER). This is because it is a mixed-effect model, and the 'lmer' modelling function uses the Satterthwaite approximation to estimate the degrees of freedom for each fixed effect.
+
+Degrees of freedom define the t-distribution used in the test. In mixed-effects models, the presence of clustered or repeated measurements violates the independence assumption, meaning the effective degrees of freedom must be approximated and are typically lower than in simpler models. The Satterthwaite approximation accounts for the uncertainty in estimating random-effects variance components, providing adjusted degrees of freedom appropriate for valid inference.
+
+Interpretation of cohen's d:
+
+- for a main effect, d refers to the effect size of moving from group 0 to 1
+- for an interaction, d refers to the standardised difference in slopes between groups (e.g., the slope for when training = 0, and the slope for when training = 1)
+
+```{r equiv test}
+
+tost_from_mixed_model <- function(model, term, sesoi_d = 0.1, alpha = 0.05) {
+  # Load required package
+  if (!requireNamespace("lmerTest", quietly = TRUE)) {
+    stop("Please install the 'lmerTest' package.")
+  }
+
+  # Extract total SD across all variance components
+  varcomps <- as.data.frame(VarCorr(model))
+  sd_total <- sqrt(sum(varcomps$vcov))  # standardise to d-units
+
+  # Extract estimate and SE for the term
+  est <- fixef(model)[term]
+  se <- summary(model)$coefficients[term, "Std. Error"]
+  df <- summary(model)$coefficients[term, "df"]
+
+  # Convert to Cohen's d
+  d <- est / sd_total
+  se_d <- se / sd_total
+
+  # TOST t-values for one-sided tests at alpha
+  t_lower <- (d - (-sesoi_d)) / se_d  # test: d > -sesoi
+  t_upper <- (d - sesoi_d) / se_d     # test: d <  sesoi
+
+  # p-values
+  p_lower <- pt(t_lower, df, lower.tail = FALSE)
+  p_upper <- pt(t_upper, df, lower.tail = TRUE)
+
+  # 90% CI for d (corresponds to TOST)
+  t_crit <- qt(1 - alpha, df)  # captures the 95% percentile for a 90% CI
+  ci_lower <- d - t_crit * se_d
+  ci_upper <- d + t_crit * se_d
+
+  # Return
+  result <- list(
+    d = d,
+    se_d = se_d,
+    df = df,
+    t_lower = t_lower,
+    t_upper = t_upper,
+    ci_90 = c(ci_lower, ci_upper),
+    p_lower = p_lower,
+    p_upper = p_upper,
+    equivalent = (p_lower < alpha & p_upper < alpha)
+  )
+  class(result) <- "tost_d_result"
+  return(result)
+}
+
+# Print method
+print.tost_d_result <- function(x, ...) {
+  cat("TOST for Cohen's d:\n")
+  cat(sprintf("  d estimate       = %.3f\n", x$d))
+  cat(sprintf("  90%% CI for d     = [%.3f, %.3f]\n", x$ci_90[1], x$ci_90[2]))
+  cat(sprintf("  Lower bound test: t(%.1f) = %.2f, p = %.4f\n", x$df, x$t_lower, x$p_lower))
+  cat(sprintf("  Upper bound test: t(%.1f) = %.2f, p = %.4f\n", x$df, x$t_upper, x$p_upper))
+  cat(sprintf("  Equivalence result: %s\n",
+              ifelse(x$equivalent, "EQUIVALENT (within SESOI)", "NOT EQUIVALENT")))
+}
+
+```
+
+## Hypothesis 1
+
+The underlying structures of the persuasion knowledge scale is checked using a CFA from the package Lavaan.
+
+```{r persuasion knowledge CFA}
+
+# isolating the PK measures
+pk_subset <- mixedeffect_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
+
+# creating the items formatted correctly for Lavaan
+cfa_pk <- 'pk =~ PK1_value + PK2_value + PK3_value + PK4_value'
+
+# run the CFA
+fit_pk <- cfa(cfa_pk, data=pk_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
+
+# view factor loadings and model fit indices
+summary(fit_pk, fit.measures=T)
+
+# Comparing the alpha using the psych package
+
+pk_advert <- mixedeffect_df[, c("PK1_value", "PK3_value")]
+
+# extract alpha for all 4 items
+alpha4 <- alpha(pk_subset)$total$raw_alpha
+
+# run and extract alpha for 2 items
+alpha2 <- alpha(pk_advert)$total$raw_alpha
+
+# present as a comparison table
+comparison <- data.frame(
+  Items = c("PK1, PK2, PK3, PK4", "PK1, PK3"),
+  CronbachAlpha = round(c(alpha4, alpha2), 2)
+)
+
+kable(comparison, caption = "Comparison of Cronbach's alpha for 4 items vs 2 items")
+
+```
+
+The decision was made to only analyse the first and third persuasion knowledge item, capturing the distinct subscale of 'advertisement recognition'.
+
+Below runs the model and creates a table using knitr to visualise the effects and model indices.
+
+```{r H1}
+
+# optimiser is used to help convergence 
+perc_advert <- lmer(PK_advert ~ version + Training.condition + agree_value + (1 | id) + (1|advert), data = mixedeffect_df, control = lmerControl(optimizer = "bobyqa"))
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(perc_advert, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(perc_advert))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(perc_advert)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c(
+    "Random Effect id", 
+    "Random Effect advert", 
+    "ICC", 
+    "sigma^2", 
+    "Marginal R2", 
+    "Conditional R2"
+  ),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "(Intercept)" ~ "Intercept",
+    term == "version1" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition1" ~ "Training\n (ref: no training)",
+    term == "agree_value" ~ "Agreement",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .))) 
+
+# necessary for knitting to pdf
+fixed_effects <- fixed_effects %>%
+  mutate(term = gsub("\\(Intercept\\)", "Intercept", term))
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: persuasion knowledge: advert recognition",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+Below calculates cohen's d and runs the equivalence test on the main effects.
+
+```{r, echo=FALSE}
+
+result <- tost_from_mixed_model(
+  model = perc_advert,
+  term = "version",
+  sesoi_d = 0.1,
+  alpha = 0.05
+)
+
+print(result)
+
+```
+
+## Hypothesis 2 (exploratory)
+
+Previous studies have predicted a negative effect of a disclosure on perceptions of credibility. We test this in an exploratory way to more clearly situate our findings with other papers. It is noted many studies test an indirect mediation through persuasion knowledge. Mediation analysis relies on independence between data points, and may be not be appropriate with our data. For this reason, we only test a main effect. 
+
+```{r credible cfa}
+
+# isolate credible scale
+cred_subset <- mixedeffect_df[, c("trustworthy_value", "believable_value", "accurate_value", "factual_value")]
+
+# fit cfa
+cfa_credible <- 'credible =~ trustworthy_value + believable_value + accurate_value + factual_value'
+
+fit_credible <- cfa(cfa_credible, data=cred_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
+
+# view factor loadings and model fit indices
+summary(fit_credible, fit.measures=T)
+
+# Cronbachs alpha
+cred_alpha <- alpha(cred_subset)$total$raw_alpha
+print(paste("Credibility Cronbach's alpha:", round(cred_alpha, 2)))
+
+```
+
+```{r}
+
+cred <- lmer(credibility ~ Training.condition + version + agree_value + (1|id) + (1|advert), data = mixedeffect_df)
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(cred, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(cred))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(cred)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Convert model fit metrics into rows
+metric_rows <- tibble(
+  term = c("Random Effect (id)", "Random Effect (advert)", "ICC", "σ-squared", "Marginal R-squared", "Conditional R-squared"),
+  estimate = c(tau00_id, tau00_advert, icc, sigma, r2_marginal, r2_conditional),
+  std.error = NA,
+  conf.low = NA,
+  conf.high = NA,
+  p.value = NA
+)
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "(Intercept)" ~ "Intercept",
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "agree_value" ~ "Agreement with campaign",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  dplyr::mutate(across(everything(), as.character)) %>%  
+  dplyr::mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))
+
+fixed_effects <- fixed_effects %>%
+  mutate(term = gsub("\\(Intercept\\)", "Intercept", term))
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: perceived credibility",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+We find an unexpected positive effect of the disclosure on perceptions of credibility. Below tests the effect for practical significance as well as the robustness of the p-value using the false discovery rate method.
+
+```{r credibility equivelence, echo=FALSE}
+
+result <- tost_from_mixed_model(
+  model = cred,
+  term = "version",
+  sesoi_d = 0.1,
+  alpha = 0.05
+)
+
+print(result)
+
+#p-values adjusted for false discovery rate to check if the credibility effect is robust to adjustments for multiple comparisons
+
+# Extract p-values from the summary of the model
+p_vals <- summary(cred)$coefficients[, "Pr(>|t|)"]
+
+# Adjust p-values using the Benjamini-Hochberg method for FDR
+adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
+
+# Create a data frame with original and adjusted p-values
+p_val_table <- data.frame(
+  Fixed_Effect = rownames(summary(cred)$coefficients), 
+  Original_P_Value = p_vals,
+  Adjusted_P_Value = adjusted_p_vals,
+  row.names = NULL
+)
+
+# Round the p-values for better readability
+p_val_table <- p_val_table %>%
+  mutate(
+    Original_P_Value = formatC(Original_P_Value, format = "f", digits = 3),
+    Adjusted_P_Value = formatC(Adjusted_P_Value, format = "f", digits = 3)
+  )
+
+# Rename row terms
+p_val_table <- p_val_table %>%
+  mutate(Fixed_Effect = case_when(
+    Fixed_Effect == "(Intercept)" ~ "Intercept",
+    Fixed_Effect == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    Fixed_Effect == "Training.condition" ~ "Training\n (ref: no training)",
+    TRUE ~ Fixed_Effect
+  ))
+
+# Format table
+p_val_table %>%
+  dplyr::select(Fixed_Effect, Original_P_Value, Adjusted_P_Value) %>%
+  kable(
+    caption = "Original and Adjusted p-Values for Fixed Effects",
+    col.names = c("Fixed Effect", "Original P-Value", "Adjusted P-Value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+## Hypothesis 3
+
+```{r credibility interaction}
+
+cred_int <- lmer(credibility ~ Training.condition*version + agree_value + (1|id) + (1|advert), data = mixedeffect_df)
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(cred_int, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(cred_int))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(cred_int)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "(Intercept)" ~ "Intercept",
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "Training.condition:version" ~ "Training*Version",
+    term == "agree_value" ~ "Agreement with campaign",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  dplyr::mutate(across(everything(), as.character)) %>%  
+  dplyr::mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))  
+fixed_effects <- fixed_effects %>%
+  mutate(term = gsub("\\(Intercept\\)", "Intercept", term))
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: perceived credibility",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+```{r, echo=FALSE}
+
+result <- tost_from_mixed_model(
+  model = cred_int,
+  term = "Training.condition:version",
+  sesoi_d = 0.1,
+  alpha = 0.05
+)
+
+print(result)
+
+```
+
+The code below checks model fit for the simpler (no interaction) and interaction model. It uses the AIC and Likelihood Ratio Test (LRT) to compare models. A lower AIC value is better. It can be seen the interaction effect worsens model parsimony (AIC) and does not improve model fit (LRT). 
+
+```{r credibility AIC and LRT, echo=FALSE}
+
+# informed_model compared with informed_int
+
+# Compare AIC
+aic_credible <- AIC(cred, cred_int)
+
+# Formatting for clear presentation
+aic_cred <- as.data.frame(aic_credible)
+colnames(aic_cred) <- c("Degrees of Freedom", "AIC")
+rownames(aic_cred) <- c("version + training + agree", "version*training + agree")
+kable(aic_cred, caption = "AIC: perceived credibility")
+
+# LRT using package 'afex'
+
+afex::mixed(
+  credibility ~ Training.condition * version + agree_value + (1|id) + (1|advert),
+  data = mixedeffect_df,
+  method = "LRT"
+)
+
+```
+
+## Hypothesis 4
+
+Effect of version on perceived self-informedness.
+
+```{r inform cfa}
+
+#perceived self-informedness
+#with only 3 items, this is a just identified model so model fit indices cannot be checked. Instead, factor loadings are inspected.
+
+in_subset <- mixedeffect_df[, c("informed2_value", "informed3_value", "informed4_value")]
+
+cfa_informed <- 'informed =~ informed2_value + informed3_value + informed4_value'
+
+# fit CFA
+fit_informed <- cfa(cfa_informed, data=in_subset, 
+std.lv=T, missing='direct', 
+estimator='MLR')
+
+# view factor loadings
+summary(fit_informed)
+
+# Cronbachs alpha
+inform_alpha <- alpha(in_subset)$total$raw_alpha
+print(paste("Subjective informedness Cronbach's alpha:", round(inform_alpha, 2)))
+
+```
+
+```{r}
+
+informed_model <- lmer(informed ~ Training.condition + version + agree_value + (1|id) + (1|advert), data = mixedeffect_df)
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(informed_model, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(informed_model))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(informed_model)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "(Intercept)" ~ "Intercept",
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "agree_value" ~ "Agreement with campaign",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  dplyr::mutate(across(everything(), as.character)) %>%  
+  dplyr::mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .)))
+
+fixed_effects <- fixed_effects %>%
+  mutate(term = gsub("\\(Intercept\\)", "Intercept", term))
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: perceived self-informedness",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+## Hypothesis 5
+
+Effect of version x training on perceived self-informedness.
+
+```{r informed interaction}
+
+informed_int <- lmer(informed ~ Training.condition*version + agree_value + (1|id) + (1|advert), data = mixedeffect_df)
+
+# Extract fixed effects with confidence intervals
+fixed_effects <- tidy(informed_int, effects = "fixed", conf.int = TRUE)
+
+# Extract variance components
+random_effects <- as.data.frame(VarCorr(informed_int))
+
+# Extract τ00 values for id and advert
+tau00_id <- random_effects[random_effects$grp == "id", "vcov"]
+tau00_advert <- random_effects[random_effects$grp == "advert", "vcov"]
+
+# Extract model performance metrics
+model_metrics <- model_performance(informed_int)
+icc <- model_metrics$ICC
+sigma <- model_metrics$Sigma
+r2_marginal <- model_metrics$R2_marginal
+r2_conditional <- model_metrics$R2_conditional
+
+# Bind these rows to fixed_effects
+fixed_effects <- fixed_effects %>%
+  dplyr::select(term, estimate, std.error, conf.low, conf.high, p.value) %>%
+  bind_rows(metric_rows)
+
+#rounding for better formatting
+fixed_effects <- fixed_effects %>%
+  mutate(across(
+    c(estimate, std.error, conf.low, conf.high, p.value),
+    ~ formatC(., format = "f", digits = 3)
+  ))
+
+# Rename row terms
+fixed_effects <- fixed_effects %>%
+  mutate(term = case_when(
+    term == "(Intercept)" ~ "Intercept",
+    term == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
+    term == "Training.condition" ~ "Training\n (ref: no training)",
+    term == "agree_value" ~ "Agreement",
+    term == "Training.condition:version" ~ "Training*Version",
+    TRUE ~ term
+  ))
+
+# Replace NA values with blank spaces
+fixed_effects <- fixed_effects %>%
+  mutate(across(everything(), as.character)) %>%  
+  mutate(across(where(is.character), ~ gsub("^\\s*NA\\s*$", "", .))) 
+
+fixed_effects <- fixed_effects %>%
+  mutate(term = gsub("\\(Intercept\\)", "Intercept", term))
+
+#visualising
+
+fixed_effects %>%
+  dplyr::select(
+    term, estimate, std.error, conf.low, conf.high, p.value
+  ) %>%
+  kable(
+    caption = "Outcome: perceived self informedness",
+    col.names = c("Term", "Coefficient", "Std. Error", "Lower CI", "Upper CI", "p-value")
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+
+```
+
+The code below checks model fit for the simpler (no interaction) and interaction model. It uses the AIC and Likelihood Ratio Test to compare both models. Lower AIC values indicate a better fitting model. 
+
+```{r self informed AIC and LRT, echo=FALSE}
+
+# informed_model compared with informed_int
+
+# Compare AIC
+aic_table <- AIC(informed_model, informed_int)
+
+# Formatting for clear presentation
+aic_df <- as.data.frame(aic_table)
+colnames(aic_df) <- c("Degrees of Freedom", "AIC")
+rownames(aic_df) <- c("version + training + agree", "version*training + agree")
+kable(aic_df, caption = "AIC: perceived self-informedness")
+
+# LRT using package afex, function 'mixed'
+
+afex::mixed(
+  informed ~ Training.condition * version + agree_value + (1|id) + (1|advert),
+  data = mixedeffect_df,
+  method = "LRT"
+)
+
+```
+
+Equivalence for the main effect of version in model 5 (the more valid estimate of this effect):
+
+```{r informed equivalence, echo=FALSE}
+
+result <- tost_from_mixed_model(
+  model = informed_int,
+  term = "version",
+  sesoi_d = 0.1,
+  alpha = 0.05
+)
+
+print(result)
+
+```
+
+Equivalence for the interaction effect in model 5:
+
+```{r, echo=FALSE}
+
+result <- tost_from_mixed_model(
+  model = informed_int,
+  term = "Training.condition:version",
+  sesoi_d = 0.1,
+  alpha = 0.05
+)
+
+print(result)
+
+```
+
+## Hypothesis 6 
+
+Effect of the training on confidence in regulatory effectiveness.
+
+```{r}
+
+regulation_model <- lm(election_reg ~ Training.condition, data = betweenmeasure_df)
+
+summary(regulation_model)
+
+```
+
+```{r regulation equivalence, echo=FALSE}
+
+# setting the parameters
+
+est <- coef(regulation_model)["Training.condition"]
+se <- summary(regulation_model)$coefficients["Training.condition", "Std. Error"]
+n <- nobs(regulation_model)
+
+lower_bound <- -0.1
+upper_bound <-  0.1
+
+# Calculating d and critical value
+
+sd_total <- sd(betweenmeasure_df$election_reg, na.rm = TRUE)
+df <- n - 2 # degrees of freedom
+d <- est/sd_total # cohen's d
+se_d <- se / sd_total # cohen's d standard error
+t_crit <- qt(0.95, df)  # One-sided 95%, which corresponds to 90% CI
+
+# Calculating confidence intervals
+
+CI_lower <- d - (t_crit*se_d)
+CI_upper <- d + (t_crit*se_d)
+
+# Lower bound: Test H0₁: d ≤ –0.1 
+
+t_lower <- (d - lower_bound) / se_d
+p_lower <- pt(t_lower, df = df, lower.tail = FALSE)
+
+# Upper bound: Test H0₂: d ≥ +0.1 
+
+t_upper <- (d - upper_bound) / se_d
+p_upper <- pt(t_upper, df = df, lower.tail = TRUE) 
+
+# Print
+
+cat("Cohen's d: d =", round(d, 3), ", 90% CI: [", round(CI_lower, 3), ", ", round(CI_upper, 3), "]")
+
+cat("Lower bound test:  t =", round(t_lower, 2), ", p =", round(p_lower, 4), "\n")
+cat("Upper bound test:  t =", round(t_upper, 2), ", p =", round(p_upper, 4), "\n")
+
+```
+
+## Analysis Specific References
+
+Bakdash JZ and Marusich LR (2017) Repeated measures correlation. Frontiers in Psychology 8: 1-13.
+
+Brown VA (2021) An introduction to linear mixed-effects modeling in R. Advances in Methods and Practices in Psychological Science 4(1): 2515245920960351.
+
+Isager (2019) "Mixed model equivalence test using R and PANGEA". Link:
+https://pedermisager.org/blog/mixed_model_equivalence/
+
+Lakens D (2024) When and how to deviate from a preregistration. Collabra: Psychology 10(1): 117094.
+
+Lakens, D., Scheel, A.M. and Isager, P.M., 2018. Equivalence testing for psychological research: A tutorial. Advances in methods and practices in psychological science, 1(2), pp.259-269.
+
+Matuschek H, Kliegl R, Vasishth S, Baayen H and Bates D (2017) Balancing Type I error and power in linear mixed models. Journal of Memory and Language 94: 305-315.
+
+Singmann H and Kellen D (2019) An Introduction to Mixed Models for Experimental Psychology. In: Spieler DH and Schumacher E (eds) New Methods in Cognitive Psychology. New York and London: Routledge, pp. 4-31. 
