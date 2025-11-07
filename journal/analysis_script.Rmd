@@ -1,0 +1,784 @@
+---
+title: "Disclosures and Third-Party Campaigns: Analysis Code"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(lavaan)
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(ggeffects)
+library(performance)
+library(knitr)
+library(kableExtra)
+library(broom)
+library(broom.mixed)
+library(psych)
+library(stats)
+library(simr)
+
+```
+
+This is the main analysis code for all models reported in the main paper, including the generation of effect sizes and equivalence testing. Please ensure you have the data frames 'mixedeffect_df.csv' and 'betweenmeasures_df.csv' downloaded from the OSF project. This code will look for these files in a folder named 'OSF_data'. Exclusions have already been applied to this dataset.
+
+Alternatively, you can download 'main_data.csv' and use the 'main_datawrangle.Rmd' document to wrangle the data yourself, or to check the data processing code.
+
+## Reading in the data files
+
+This will use the here package.
+
+```{r reading data}
+
+mixedeffect_df <- read.csv(here("OSF_data", "mixedeffect_df.csv"))
+betweenmeasure_df <- read.csv(here("OSF_data", "betweenmeasures_df.csv"))
+
+```
+
+## Randomisation checks
+
+Below shows the successful randomisation across the training conditions (between measures).
+
+```{r transforming variables, include=FALSE}
+
+# converting demographic variables into factors for analysis
+
+#gender, female as reference
+
+gender_response_order <- c("Female", "Male", "Non-binary / third gender", "Prefer not to say")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(gender, ~factor(.x, levels = gender_response_order)))
+
+#Education level, postgrad as reference
+
+ed_response_order <- c("Postgraduate (e.g. M.Sc, Ph.D)", "Undergraduate University (e.g. BA, B.Sc, B.Ed)", "A-level, or equivalent", "GCSE level, or equivalent", "Other, please specify", "No formal qualifications")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(education, ~factor(.x, levels = ed_response_order)))
+
+#partyID, Labour as reference
+
+party_response_order <- c("Labour", "Conservative", "Liberal Democrat", "Reform UK", "United Kingdom Independence Party (UKIP)", "Green Party", "Scottish National Party (SNP)", "Plaid Cymru", "Sinn Féin", "Democratic Unionist Party", "Alliance Party", "Other, please specify___________", "I do not identify with any political party")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(partyID, ~factor(.x, levels = party_response_order)))
+
+#ethnicity
+
+ethnicity_response_order <- c("White", "Black", "Asian", "Mixed", "Other")
+
+betweenmeasure_df <- betweenmeasure_df %>%
+  mutate(across(Ethnicity.simplified, ~factor(.x, levels = ethnicity_response_order)))
+
+# political interest
+
+betweenmeasure_df$political_interest <- as.numeric(betweenmeasure_df$political_interest)
+
+# age
+
+betweenmeasure_df$age <- as.numeric(betweenmeasure_df$age)
+
+```
+
+```{r}
+
+# Set up a results list
+results <- list()
+
+# Age (numerical)
+tt_age <- t.test(age ~ Training.condition, data = betweenmeasure_df)
+results[["Age"]] <- c(
+  Test = "t-test",
+  Statistic = round(tt_age$statistic, 2),
+  df = round(tt_age$parameter, 2),
+  p_value = round(tt_age$p.value, 3)
+)
+
+# Political interest (numerical)
+tt_pi <- t.test(political_interest ~ Training.condition, data = betweenmeasure_df)
+results[["Political interest"]] <- c(
+  Test = "t-test",
+  Statistic = round(tt_pi$statistic, 2),
+  df = round(tt_pi$parameter, 2),
+  p_value = round(tt_pi$p.value, 3)
+)
+
+# Gender (categorical, chi-squared)
+tab_gender <- table(betweenmeasure_df$gender, betweenmeasure_df$Training.condition)
+chi_gender <- chisq.test(tab_gender)
+results[["Gender"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_gender$statistic, 2),
+  df = chi_gender$parameter,
+  p_value = round(chi_gender$p.value, 3)
+)
+
+# Education (categorical, chi-squared)
+tab_edu <- table(betweenmeasure_df$education, betweenmeasure_df$Training.condition)
+chi_edu <- chisq.test(tab_edu)
+results[["Education"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_edu$statistic, 2),
+  df = chi_edu$parameter,
+  p_value = round(chi_edu$p.value, 3)
+)
+
+# Party ID (categorical, chi-squared)
+tab_party <- table(betweenmeasure_df$partyID, betweenmeasure_df$Training.condition)
+chi_party <- chisq.test(tab_party)
+results[["Party ID"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_party$statistic, 2),
+  df = chi_party$parameter,
+  p_value = round(chi_party$p.value, 3)
+)
+
+# Ethnicity (categorical, chi-squared)
+tab_eth <- table(betweenmeasure_df$Ethnicity.simplified, betweenmeasure_df$Training.condition)
+chi_eth <- chisq.test(tab_eth)
+results[["Ethnicity"]] <- c(
+  Test = "Chi-squared",
+  Statistic = round(chi_eth$statistic, 2),
+  df = chi_eth$parameter,
+  p_value = round(chi_eth$p.value, 3)
+)
+
+# Convert to a data frame
+results_df <- as.data.frame(do.call(rbind, results))
+
+# Show table
+kable(results_df, caption = "Randomisation Check Across Demographics")
+
+```
+
+## Manipulation check
+
+Below shows where in the ranking participants tended to rate 'voters' when asked who the digital imprint information was most useful for. 
+
+```{r useful manipulation check, echo=FALSE}
+
+#set as factor
+betweenmeasure_df$useful_rank_1 <- as.factor(betweenmeasure_df$useful_rank_1)
+
+betweenmeasure_df$useful_rank_1 <- factor(betweenmeasure_df$useful_rank_1, levels = c("6", "5", "4", "3", "2", "1"))
+
+# Calculate the counts and percentages
+useful_plot <- betweenmeasure_df %>%
+  group_by(Training.condition, useful_rank_1) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+
+#create plot
+
+useful <- ggplot(useful_plot, aes(x = useful_rank_1, y = Count, fill = as.factor(Training.condition))) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_dodge(width = 0.6), 
+           vjust = 0.5,
+           hjust = -0.1,
+            size = 3) +  # Add percentage labels above bars
+  scale_fill_brewer(palette = "Paired",
+                    labels = c("No Training", "Trained")) +
+  labs(title = "Response option: 'Voters, to understand who is responsible for the campaign material'",
+       x = "Rank Position",  
+       y = "Count") +   
+  facet_wrap(~ Training.condition, 
+             labeller = labeller(Training.condition = c('0' = 'No Training', '1' = 'Training'))) +  # Facet labels
+  theme_minimal() +
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        title = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10)) +
+  coord_flip() +
+  expand_limits(y = max(useful_plot$Count) * 1.1) +
+  theme(aspect.ratio = 1/1.75)
+
+useful
+
+```
+
+```{r wilcoxin signed rank, echo=FALSE}
+
+# Wilcoxon signed-rank test for overall distribution of rank
+
+betweenmeasure_df$useful_rank_1_num <- as.numeric(as.character(betweenmeasure_df$useful_rank_1))
+
+wilcox.test(useful_rank_1_num ~ Training.condition, data = betweenmeasure_df, 
+            alternative = "two.sided", exact = FALSE)
+
+```
+
+## Equivalence test function
+
+Below creates a function for a two sided equivalence test (TOST) for main effects. It both calculates effect size using cohen's d, using the 90% CI, and then tests each bound for equivalence.
+
+This code is manually created rather than using pre-existing packages (such as TOSTER). This is because it is a mixed-effect model, and the 'lmer' modelling function uses the Satterthwaite approximation to estimate the degrees of freedom for each fixed effect.
+
+Degrees of freedom define the t-distribution used in the test. In mixed-effects models, the presence of clustered or repeated measurements violates the independence assumption, meaning the effective degrees of freedom must be approximated and are typically lower than in simpler models. The Satterthwaite approximation accounts for the uncertainty in estimating random-effects variance components, providing adjusted degrees of freedom appropriate for valid inference.
+
+Interpretation of cohen's d:
+
+- for a main effect, d refers to the effect size of moving from group 0 to 1
+- for an interaction, d refers to the standardised difference in slopes between groups (e.g., the slope for when training = 0, and the slope for when training = 1)
+
+```{r equiv test}
+
+mixed_model_TOST <- function(model, term, sesoi_d = 0.1, alpha = 0.05) {
+  # Load required package
+  if (!requireNamespace("lmerTest", quietly = TRUE)) {
+    stop("Please install the 'lmerTest' package.")
+  }
+
+  # Extract total SD across all variance components
+  varcomps <- as.data.frame(VarCorr(model))
+  sd_total <- sqrt(sum(varcomps$vcov))  # standardise to d-units
+
+  # Extract estimate and SE for the term
+  est <- fixef(model)[term]
+  se <- summary(model)$coefficients[term, "Std. Error"]
+  df <- summary(model)$coefficients[term, "df"]
+
+  # Convert to Cohen's d
+  d <- est / sd_total
+  se_d <- se / sd_total
+
+  # TOST t-values for one-sided tests at alpha
+  t_lower <- (d - (-sesoi_d)) / se_d  # test: d > -sesoi
+  t_upper <- (d - sesoi_d) / se_d     # test: d <  sesoi
+
+  # p-values
+  p_lower <- pt(t_lower, df, lower.tail = FALSE)
+  p_upper <- pt(t_upper, df, lower.tail = TRUE)
+
+  # 90% CI for d (corresponds to TOST)
+  t_crit <- qt(1 - alpha, df)  # captures the 95% percentile for a 90% CI
+  ci_lower <- d - t_crit * se_d
+  ci_upper <- d + t_crit * se_d
+
+  # Return
+  result <- list(
+    d = d,
+    se_d = se_d,
+    df = df,
+    t_lower = t_lower,
+    t_upper = t_upper,
+    ci_90 = c(ci_lower, ci_upper),
+    p_lower = p_lower,
+    p_upper = p_upper,
+    equivalent = (p_lower < alpha & p_upper < alpha)
+  )
+  class(result) <- "tost_d_result"
+  return(result)
+}
+
+# Print method
+print.tost_d_result <- function(x, ...) {
+  cat("TOST for Cohen's d:\n")
+  cat(sprintf("  d estimate       = %.3f\n", x$d))
+  cat(sprintf("  90%% CI for d     = [%.3f, %.3f]\n", x$ci_90[1], x$ci_90[2]))
+  cat(sprintf("  Lower bound test: t(%.1f) = %.2f, p = %.4f\n", x$df, x$t_lower, x$p_lower))
+  cat(sprintf("  Upper bound test: t(%.1f) = %.2f, p = %.4f\n", x$df, x$t_upper, x$p_upper))
+  cat(sprintf("  Equivalence result: %s\n",
+              ifelse(x$equivalent, "EQUIVALENT (within SESOI)", "NOT EQUIVALENT")))
+}
+
+```
+
+## Apriori Statistical power
+
+Below uses the package simr to calculate the power the simulated models with the planned structure have to detect a main and interaction effect with an effect size of Cohens d = 0.10. It assumes hypothetical variances.
+
+```{r power, eval=FALSE}
+
+# Suppose 1,250 participants, each seeing 4 adverts
+N <- 1250
+design <- expand.grid(id = factor(seq_len(N)),
+                      advert = factor(1:4))
+
+# Between-subject factor (training)
+set.seed(1)
+id_level <- data.frame(id=levels(design$id),
+                       Training.condition = sample(c(0,1), length(levels(design$id)), TRUE))
+design <- merge(design, id_level, by="id", all.x=TRUE, sort=FALSE)
+
+# Within subjects factor (version)
+design$version <- rep(c(0,1), length.out = nrow(design))
+
+# Hypothetical variances
+
+var_id     <- 0.30      # Var of random intercept for id
+var_advert <- 0.30      # Var of random intercept for advert
+var_eps    <- 0.60      # Residual variance
+
+# Convert variances to standard deviations
+
+sd_id     <- sqrt(var_id)
+sd_advert <- sqrt(var_advert)
+sd_eps    <- sqrt(var_eps)
+
+sd_total <- sqrt(var_id + var_advert + var_eps)  # convert d → raw units
+small_d  <- 0.10
+medium_d <- 0.20
+small_raw <- small_d * sd_total  # ≈ raw effect size
+medium_raw <- medium_d * sd_total
+
+# Name fixed effects exactly as in your formula
+fixefs <- c("(Intercept)" = 4.0,                   # plausible mean
+            "version" = small_raw,                 # small main effect
+            "Training.condition" = 0,              # no direct effect
+            "version:Training.condition" = small_raw)  # small interaction
+
+# Template model
+
+sim_model <- makeLmer(
+  Outcome ~ version * Training.condition + (1|id) + (1|advert),
+  fixef   = fixefs,
+  VarCorr = list(id = sd_id, advert = sd_advert),  # SDs for random effects
+  sigma   = sd_eps,                                # residual SD 
+  data    = design
+)
+
+# apriori for estimated N
+
+# Main effect of version
+powerSim(sim_model, test=fixed("version","t"), nsim=500)
+
+# Interaction
+powerSim(sim_model, test=fixed("version:Training.condition","t"), nsim=500)
+
+```
+
+## Reliability of aggregated scores
+
+As there is few items for each scale, these models have very few degrees of freedom and are thus just identified. This produces some warnings to advise you that the omega hierachichal estimates will not be meaningful, only the omega total estimate. Omega total is reported in the paper.
+
+```{r, echo=FALSE}
+
+# set scales
+
+informed <- mixedeffect_df[, c("informed2_value", "informed3_value", "informed4_value")]
+pk <- mixedeffect_df[, c("PK1_value", "PK2_value", "PK3_value", "PK4_value")]
+credibility <- mixedeffect_df[, c("trustworthy_value", "accurate_value", "believable_value", "factual_value")]
+
+# Informed
+reliability_source <- psych::omega(informed, 1, plot = FALSE)
+reliability_source$alpha
+reliability_source$omega.tot
+
+# Persuasion Knowledge
+reliability_pk <- psych::omega(pk, 1, plot = FALSE)
+reliability_pk$alpha
+reliability_pk$omega.tot
+
+# Credibility
+reliability_cred <- psych::omega(credibility, 1, plot = FALSE)
+reliability_cred$alpha
+reliability_cred$omega.tot
+
+```
+
+## Group descriptives
+
+```{r}
+
+# Calculate means and standard deviations
+descriptive_stats <- mixedeffect_df %>%
+  group_by(Training.condition, version) %>%
+  summarise(
+    informed_mean = mean(informed, na.rm = TRUE),
+    informed_sd = sd(informed, na.rm = TRUE),
+    PK_mean = mean(PK, na.rm = TRUE),
+    PK_sd = sd(PK, na.rm = TRUE),
+    Credibility_mean = mean(credibility, na.rm = TRUE),
+    Credibility_sd = sd(credibility, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+# Create and format the table
+descriptive_stats %>%
+  kable(format = "html", digits = 2, col.names = c("Training Condition", "Version", "Informed Mean", "Informed SD", "PK Mean", "PK SD", "Credibility Mean", "Credibility SD")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+## Hypothesis Testing
+
+### H1: Perceived source identification
+
+```{r H1, echo=FALSE}
+
+# run model
+
+inform_int <- lmer(informed ~ version*Training.condition + (1 | id) + (1|advert), data = mixedeffect_df)
+
+summary(inform_int)
+
+sjPlot::tab_model(inform_int, show.se = TRUE)
+
+# SESOI
+
+# Digital imprint
+mixed_model_TOST(inform_int, term = "version", sesoi_d = 0.10)
+
+# Interaction 
+mixed_model_TOST(inform_int, term = "version:Training.condition", sesoi_d = 0.10)
+
+```
+
+#### Figure 1
+
+```{r figure 1, echo=FALSE, fig.align='center'}
+
+# plot
+
+inform_preds <- ggeffects::ggpredict(inform_int, terms = c("Training.condition", "version"))
+
+# Set the dodge width for side-by-side positioning
+dodge_width <- 0.3  # Adjust this value as needed to control spacing
+
+inform_interaction <- ggplot2::ggplot(inform_preds, aes(x = x, y = predicted, color = group)) +
+  geom_point(position = position_dodge(width = dodge_width), size = 3) +  
+  geom_line(aes(group = group), position = position_dodge(width = dodge_width), linewidth = 1) +  # Lines with dodge
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = dodge_width), width = 0.1) +  # Error bars with dodge
+  scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
+                     labels = c("Digital Imprint Absent", "Digital Imprint Viewed")) +
+  scale_x_discrete(labels = c("0" = "Not trained", "1" = "Trained")) +
+  labs(x = "Training Condition", 
+       y = "Predicted Score (95% CI)",
+       title = "") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 12))
+
+inform_interaction
+
+```
+
+### H2: Persuasion knowledge
+
+```{r H2, echo=FALSE, fig.align='center'}
+
+pk_int <- lmer(PK ~ version*Training.condition + (1 | id) + (1|advert), data = mixedeffect_df)
+
+summary(pk_int)
+
+sjPlot::tab_model(pk_int, show.se = TRUE)
+
+# SESOI
+
+# Digital imprint
+mixed_model_TOST(pk_int, term = "version", sesoi_d = 0.10)
+
+# Interaction 
+mixed_model_TOST(pk_int, term = "version:Training.condition", sesoi_d = 0.10)
+
+# interaction plotted
+
+pk_preds <- ggeffects::ggpredict(pk_int, terms = c("Training.condition", "version"))
+
+pk_interaction <- ggplot2::ggplot(pk_preds, aes(x = x, y = predicted, color = group)) +
+  geom_point(position = position_dodge(width = dodge_width), size = 3) +  
+  geom_line(aes(group = group), position = position_dodge(width = dodge_width), linewidth = 1) +  # Lines with dodge
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = dodge_width), width = 0.1) +  # Error bars with dodge
+  scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
+                     labels = c("Digital Imprint Absent", "Digital Imprint Viewed")) +
+  labs(x = "Training Condition", 
+       y = "Predicted Score (95% CI)",
+       title = "") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 12))
+
+pk_interaction
+
+```
+
+### H3: Perceieved credibility
+
+```{r H3, echo=FALSE, fig.align='center'}
+
+cred_int <- lmer(credibility ~ version*Training.condition + (1 | id) + (1|advert), data = mixedeffect_df)
+
+summary(cred_int)
+
+sjPlot::tab_model(cred_int, show.se = TRUE)
+
+# SESOI
+
+# Digital imprint
+mixed_model_TOST(cred_int, term = "version", sesoi_d = 0.10)
+
+# Interaction 
+mixed_model_TOST(cred_int, term = "version:Training.condition", sesoi_d = 0.10)
+
+# interaction plotted
+
+cred_preds <- ggeffects::ggpredict(cred_int, terms = c("Training.condition", "version"))
+
+cred_interaction <- ggplot2::ggplot(cred_preds, aes(x = x, y = predicted, color = group)) +
+  geom_point(position = position_dodge(width = dodge_width), size = 3) +  
+  geom_line(aes(group = group), position = position_dodge(width = dodge_width), linewidth = 1) +  # Lines with dodge
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = dodge_width), width = 0.1) +  # Error bars with dodge
+  scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
+                     labels = c("Digital Imprint Absent", "Digital Imprint Viewed")) +
+  labs(x = "Training Condition", 
+       y = "Predicted Score (95% CI)",
+       title = "") +
+  theme_minimal() +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(size = 12))
+
+cred_interaction
+
+```
+
+#### Mixed Model Assumptions
+
+```{r eval=FALSE}
+
+performance::check_model(inform_int)
+performance::check_model(pk_int)
+performance::check_model(cred_int)
+
+```
+
+### H4: Confidence in regulation
+
+```{r H4}
+
+# Welch's t-test (unequal variances) 
+welch <- t.test(election_reg ~ Training.condition,
+                data = betweenmeasure_df,
+                var.equal = FALSE,    # Welch 
+                conf.level = 0.95,
+                na.action = na.omit)
+welch
+
+# cohens d
+
+effectsize::cohens_d(election_reg ~ Training.condition, data = betweenmeasure_df)
+
+# Group descriptives
+desc <- betweenmeasure_df %>%
+  filter(!is.na(election_reg), !is.na(Training.condition)) %>%
+  group_by(Training.condition) %>%
+  summarise(n = n(), m = mean(election_reg), sd = sd(election_reg), .groups = "drop") %>%
+  arrange(Training.condition)
+
+m0  <- desc$m[1];  sd0 <- desc$sd[1];  n0 <- desc$n[1]
+m1  <- desc$m[2];  sd1 <- desc$sd[2];  n1 <- desc$n[2]
+
+# Equivalence test
+
+# Set parameters and groups
+df  <- betweenmeasure_df
+y   <- df$election_reg
+g   <- factor(df$Training.condition)       # ensure 2-level factor
+g   <- droplevels(g)
+if (nlevels(g) != 2) stop("Training.condition must have exactly two groups.")
+
+g1  <- y[g == levels(g)[1]]
+g2  <- y[g == levels(g)[2]]
+g1  <- g1[!is.na(g1)]
+g2  <- g2[!is.na(g2)]
+
+n1 <- length(g1); n2 <- length(g2)
+m1 <- mean(g1);   m2 <- mean(g2)
+s1 <- sd(g1);     s2 <- sd(g2)
+
+# SESOI in d units 
+d0 <- 0.10   # bound set here
+
+# Convert to raw-unit bound using pooled SD 
+sp <- sqrt( ((n1-1)*s1^2 + (n2-1)*s2^2) / (n1 + n2 - 2) )
+Delta <- d0 * sp
+
+# Welch SE and df
+SE  <- sqrt(s1^2/n1 + s2^2/n2)
+dfW <- (s1^2/n1 + s2^2/n2)^2 / ( (s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1) )
+
+# Two one-sided tests 
+D  <- m1 - m2
+alpha <- 0.05
+
+t_lower <- (D + Delta) / SE
+p_lower <- 1 - pt(t_lower, df = dfW)
+
+t_upper <- (D - Delta) / SE
+p_upper <- pt(t_upper, df = dfW)
+
+equiv <- (p_lower < alpha) && (p_upper < alpha)
+
+# 90% CI for the mean difference 
+tcrit90 <- qt(1 - alpha, df = dfW)
+CI90 <- c(D - tcrit90*SE, D + tcrit90*SE)
+
+# summary
+cat(sprintf("\nTOST (Welch) with ±%.3f d (raw ±%.3f %s-units)\n",
+            d0, Delta, deparse(substitute(y))))
+cat(sprintf("Groups: %s (n=%d) vs %s (n=%d)\n",
+            levels(g)[1], n1, levels(g)[2], n2))
+cat(sprintf("Mean difference D = %.4f; SE = %.4f; df = %.2f\n", D, SE, dfW))
+cat(sprintf("Lower test: t = %.3f, p = %.4f | Upper test: t = %.3f, p = %.4f\n",
+            t_lower, p_lower, t_upper, p_upper))
+cat(sprintf("90%% CI for d: [%.4f, %.4f]\n", CI90[1], CI90[2]))
+cat(sprintf("Equivalence (both one-sided p < %.2f): %s\n\n",
+            alpha, if (equiv) "YES" else "NOT EQUIVALENT"))
+
+```
+
+### Exploratory SEM
+
+Below shows the code used to process the data and build the multi-level SEM using lavaan.
+
+```{r parellel mediation model}
+
+df <- mixedeffect_df
+
+# Descriptive correlations 
+
+vars <- c(
+  "informed2_value","informed3_value","informed4_value",
+  "PK1_value","PK2_value","PK3_value","PK4_value",
+  "accurate_value","trustworthy_value","believable_value","factual_value"
+)
+
+df_between <- df %>%
+  group_by(id) %>%
+  summarise(across(all_of(vars), ~mean(.x, na.rm=TRUE)), .groups="drop")
+
+cor_between <- cor(df_between[vars], use = "pairwise.complete.obs")
+
+sd_between <- sapply(df_between[vars], function(x) sd(x, na.rm = TRUE))
+sd_between
+
+cor_between
+sd_between
+
+df_within <- df %>%
+  group_by(id) %>%
+  mutate(across(all_of(vars), ~ .x - mean(.x, na.rm=TRUE))) %>%
+  ungroup()
+
+cor_within <- cor(df_within[vars], use = "pairwise.complete.obs")
+
+cor_within
+
+```
+
+#### SEM descriptives table
+
+```{r echo=FALSE}
+
+# ensure variables are numeric
+df <- df %>%
+  mutate(across(all_of(vars), ~ suppressWarnings(as.numeric(.x))))
+
+df_between <- df %>%
+  group_by(id) %>%
+  summarise(across(all_of(vars), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
+
+# Between: mean of person means
+mean_between <- sapply(df_between[vars], function(x) mean(x, na.rm = TRUE))
+
+# Between: sd of person means
+sd_between   <- sapply(df_between[vars], function(x) sd(x, na.rm = TRUE))
+
+# Within: person-mean–centered scores (pooled across rows)
+df_within <- df %>%
+  group_by(id) %>%
+  mutate(across(all_of(vars), ~ .x - mean(.x, na.rm = TRUE))) %>%
+  ungroup()
+
+# Within: sd of centered values pooled across all rows
+sd_within <- sapply(df_within[vars], function(x) sd(x, na.rm = TRUE))
+
+# ICC per item from empty random-intercept models
+get_icc <- function(y, id) {
+  d <- data.frame(y = y, id = id)
+  d <- d[!is.na(d$y) & !is.na(d$id), ]
+  if (length(unique(d$id)) < 2) return(NA_real_)      # need >= 2 clusters
+  # need some within-cluster variance
+  wsd <- tapply(d$y, d$id, function(x) sd(x, na.rm = TRUE))
+  if (all(is.na(wsd)) || all(wsd %in% c(0, NA))) return(NA_real_)
+  m <- lmer(y ~ 1 + (1|id), data = d, REML = TRUE,
+            control = lmerControl(check.nobs.vs.nRE = "ignore",
+                                  check.nobs.vs.nlev = "ignore",
+                                  check.nobs.vs.rankZ = "ignore"))
+  vc <- as.data.frame(VarCorr(m))
+  tau2   <- vc$vcov[vc$grp == "id"]        # between
+  sigma2 <- vc$vcov[vc$grp == "Residual"]  # within
+  as.numeric(tau2 / (tau2 + sigma2))
+}
+
+icc_vals <- sapply(vars, function(v) get_icc(df[[v]], df$id))
+
+# Create and format table
+appendix_tbl <- tibble(
+  Variable       = vars,
+  `Mean (Between)` = as.numeric(mean_between[vars]),
+  `SD (Between)`   = as.numeric(sd_between[vars]),
+  `SD (Within)`    = as.numeric(sd_within[vars]),
+  ICC              = as.numeric(icc_vals[vars])
+) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2)))
+
+appendix_tbl
+
+```
+
+```{r multilevel SEM}
+
+# Reported multi-level SEM
+
+model <- '
+  level: 1
+    # Within (L1) measurement
+    Informed_w =~ informed2_value + informed3_value + informed4_value
+    PK_w       =~ PK1_value + PK3_value 
+    Cred_w     =~ accurate_value + trustworthy_value + believable_value + factual_value
+
+    # Within (L1) structural
+    Informed_w ~ a1*version
+    PK_w       ~ a2*version
+    Cred_w     ~ b1*Informed_w + b2*PK_w + cprime*version
+
+    # Defined (within-level) effects
+    ind_Informed := a1*b1
+    ind_PK       := a2*b2
+    ind_total    := ind_Informed + ind_PK
+    total        := cprime + ind_total
+
+  level: 2
+    Informed_b =~ informed2_value + informed3_value + informed4_value
+    PK_b       =~ PK1_value + PK3_value
+    Cred_b     =~ accurate_value + trustworthy_value + believable_value + factual_value
+    
+    Informed_b ~ Training.condition
+    PK_b       ~ Training.condition
+    Cred_b     ~ Training.condition
+'
+
+fit <- sem(model, data=df, cluster="id", estimator="MLR", std.lv=TRUE, meanstructure=TRUE, fixed.x=TRUE)
+
+summary(fit, standardized = TRUE, fit.measures = TRUE, ci = TRUE)
+
+```
