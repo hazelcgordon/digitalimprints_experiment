@@ -785,55 +785,73 @@ diag_lmer(cred_int, model_title = "Hypothesis 4: Perceived Credibility", save_pa
 ### Level-2 assumptions (residuals and leverage)
 
 ```{r persuasion knowledge level two assumptions}
-# ERRORS FOR STIMULI-CLUSTER CODE
 
 # Cook's D with influence.ME
 
-infl_pk <- influence(pk_mod, group = "advert")  # cluster-level influence object
-cd   <- cooks.distance(infl_pk)             # Cook’s D per cluster (id)
-thr  <- 4/length(cd)                       # heuristic cutoff
-sum(cd > thr) 
+infl_pk_advert <- influence(pk_mod, group = "advert")
+
+cd <- cooks.distance(infl_pk_advert)
+
+# With 4 adverts, this will be 4 / 4 = 1
+thr <- 4 / length(cd)
+
+sum(cd > thr)
 
 cd_df <- data.frame(
-  id = 1:length(cd),
-  cooksD = cd
+  advert = factor(seq_along(cd)),
+  cooksD = as.numeric(cd)
 )
 
 pk_cook_l2 <- ggplot(cd_df, aes(x = advert, y = cooksD)) +
   geom_col(fill = "black", alpha = 0.7) +
-  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  geom_hline(
+    yintercept = thr,
+    color = "red3",
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
   labs(
-    title = "Cook's D by cluster",
-    x = "Cluster index (experimental stimuli)",
-    y = "Cook's distance (red line = 0.003)"
+    title = "Cook's D by experimental stimulus",
+    x = "Experimental stimulus",
+    y = paste0("Cook's distance (red line = ", round(thr, 3), ")")
   ) +
   theme_bw(base_size = 12)
 
-# Q-Q plot of residuals
+# Q-Q plot of standardised advert random effects
 
-# Standardised random intercepts (z_b)
-re <- ranef(pk_mod, condVar = TRUE)$advert
-postVar <- attr(ranef(pk_mod, condVar = TRUE)[[1]], "postVar")
-z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+ran_pk <- ranef(pk_mod, condVar = TRUE)
 
-# Q–Q plot
-pk_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+# Extract advert-level random intercepts
+re_advert <- ran_pk[["advert"]]
+
+# Extract posterior variances for advert random effects
+postVar_advert <- attr(re_advert, "postVar")
+
+# Standardised random intercepts
+z_b <- as.numeric(re_advert[[1]] / sqrt(postVar_advert[1, 1, ]))
+
+qq_df <- data.frame(
+  advert = rownames(re_advert),
+  z_b = z_b
+)
+
+pk_qq_l2 <- ggplot(qq_df, aes(sample = z_b)) +
   stat_qq(shape = 16) +
   stat_qq_line(linetype = 2, alpha = 0.6) +
   labs(
-    title = "Q–Q Plot of Standardised Level-2 Random Effects",
-    x = "Theoretical Quantiles", y = "Sample Quantiles"
+    title = "Q-Q Plot of Standardised Advert-Level Random Effects",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
   ) +
   theme_bw(base_size = 12)
 
-pk_cook_l2
+# Combine plots
 
-# Combine the two plots vertically with patchwork
-pk_l2_diagnostics <- (pk_qq_l2 / pk_cook_l2) +
+pk_l2_diagnostics_advert <- (pk_qq_l2 / pk_cook_l2) +
   plot_annotation(
     title = "Level-2 Diagnostics for Persuasion Knowledge Model",
-    subtitle = "A: Normality of Random Effects (stimuli)   |   B: Cluster Influence (Cook’s D)",
-    tag_levels = "A"   # labels them A, B automatically
+    subtitle = "A: Normality of Advert Random Effects | B: Cluster Influence (Cook's D)",
+    tag_levels = "A"
   ) &
   theme(
     plot.title = element_text(size = 13, face = "bold"),
@@ -841,18 +859,452 @@ pk_l2_diagnostics <- (pk_qq_l2 / pk_cook_l2) +
     plot.tag = element_text(size = 12, face = "bold")
   )
 
+pk_l2_diagnostics_advert
+
+# save
+
 ggsave(
-  filename = "assumptions/pk_L2_diagnostics_advert.png",
-  plot = pk_l2_diagnostics,
-  width = 8.27,    # A4 width in inches
-  height = 9,  # A4 height in inches
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "pk_L2_advert.png"
+  ),
+  plot = pk_l2_diagnostics_advert,
+  width = 8.27,
+  height = 9,
   units = "in",
   dpi = 300
 )
 
 ```
 
-```{r source identification level two assumptions}
+```{r perceived source identification level two assumptions}
+
+# Cook's D with influence.ME
+
+infl_inform_advert <- influence(inform_int, group = "advert")
+
+cd <- cooks.distance(infl_inform_advert)
+
+# With 4 adverts, this will be 4 / 4 = 1
+thr <- 4 / length(cd)
+
+sum(cd > thr)
+
+cd_df <- data.frame(
+  advert = factor(seq_along(cd)),
+  cooksD = as.numeric(cd)
+)
+
+inform_cook_l2 <- ggplot(cd_df, aes(x = advert, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(
+    yintercept = thr,
+    color = "red3",
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  labs(
+    title = "Cook's D by experimental stimulus",
+    x = "Experimental stimulus",
+    y = paste0("Cook's distance (red line = ", round(thr, 3), ")")
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of standardised advert random effects
+
+ran_inform <- ranef(inform_int, condVar = TRUE)
+
+# Extract advert-level random intercepts
+re_advert <- ran_inform[["advert"]]
+
+# Extract posterior variances for advert random effects
+postVar_advert <- attr(re_advert, "postVar")
+
+# Standardised random intercepts
+z_b <- as.numeric(re_advert[[1]] / sqrt(postVar_advert[1, 1, ]))
+
+qq_df <- data.frame(
+  advert = rownames(re_advert),
+  z_b = z_b
+)
+
+inform_qq_l2 <- ggplot(qq_df, aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q-Q Plot of Standardised Advert-Level Random Effects",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+# Combine plots
+
+inform_l2_diagnostics_advert <- (inform_qq_l2 / inform_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Perceived Source Identification Model",
+    subtitle = "A: Normality of Advert Random Effects | B: Cluster Influence (Cook's D)",
+    tag_levels = "A"
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+inform_l2_diagnostics_advert
+
+# save
+
+ggsave(
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "inform_L2_advert.png"
+  ),
+  plot = inform_l2_diagnostics_advert,
+  width = 8.27,
+  height = 9,
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r perceived credibility level two assumptions}
+
+# Cook's D with influence.ME
+
+infl_cred_advert <- influence(cred_int, group = "advert")
+
+cd <- cooks.distance(infl_cred_advert)
+
+# With 4 adverts, this will be 4 / 4 = 1
+thr <- 4 / length(cd)
+
+sum(cd > thr)
+
+cd_df <- data.frame(
+  advert = factor(seq_along(cd)),
+  cooksD = as.numeric(cd)
+)
+
+cred_cook_l2 <- ggplot(cd_df, aes(x = advert, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(
+    yintercept = thr,
+    color = "red3",
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  labs(
+    title = "Cook's D by experimental stimulus",
+    x = "Experimental stimulus",
+    y = paste0("Cook's distance (red line = ", round(thr, 3), ")")
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of standardised advert random effects
+
+ran_cred <- ranef(cred_int, condVar = TRUE)
+
+# Extract advert-level random intercepts
+re_advert <- ran_cred[["advert"]]
+
+# Extract posterior variances for advert random effects
+postVar_advert <- attr(re_advert, "postVar")
+
+# Standardised random intercepts
+z_b <- as.numeric(re_advert[[1]] / sqrt(postVar_advert[1, 1, ]))
+
+qq_df <- data.frame(
+  advert = rownames(re_advert),
+  z_b = z_b
+)
+
+cred_qq_l2 <- ggplot(qq_df, aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q-Q Plot of Standardised Advert-Level Random Effects",
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+# Combine plots
+
+cred_l2_diagnostics_advert <- (cred_qq_l2 / cred_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Perceived Credibility Model",
+    subtitle = "A: Normality of Advert Random Effects | B: Cluster Influence (Cook's D)",
+    tag_levels = "A"
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+cred_l2_diagnostics_advert
+
+# save
+
+ggsave(
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "cred_L2_advert.png"
+  ),
+  plot = cred_l2_diagnostics_advert,
+  width = 8.27,
+  height = 9,
+  units = "in",
+  dpi = 300
+)
+
+```
+
+#### More meaningful plot that Cooks d with only 4 stimuli
+
+This is a descriptive way to assess the contribution each advert is having and to see the variation. It cannot tell you what is a leverage point, but indicates non-uniformity across the adverts.
+
+```{r remove one advert plot persuasion knowledge}
+
+full_fixed <- data.frame(
+  term = names(fixef(pk_mod)),
+  full_model = as.numeric(fixef(pk_mod))
+)
+
+loo_fixed_long <- infl_pk_advert$`fixed.effects[-advert]` %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("removed_advert") %>%
+  pivot_longer(
+    cols = -removed_advert,
+    names_to = "term",
+    values_to = "estimate"
+  )
+
+# change labels in plot
+
+loo_fixed_long <- loo_fixed_long %>%
+  mutate(
+    term_label = dplyr::recode(
+      term,
+      "(Intercept)" = "Intercept",
+      "Training.condition1" = "Training",
+      "version1" = "Version",
+      "version1:Training.condition1" = "Version × Training"
+    )
+  )
+
+# plot
+
+fixedef_pk <- ggplot(loo_fixed_long, aes(x = removed_advert, y = estimate)) +
+  geom_point(size = 2) +
+  geom_hline(
+    data = full_fixed %>%
+      mutate(
+        term_label = dplyr::recode(
+          term,
+          "(Intercept)" = "Intercept",
+          "Training.condition1" = "Training",
+          "version1" = "Version",
+          "version1:Training.condition1" = "Version × Training"
+        )
+      ),
+    aes(yintercept = full_model),
+    linetype = "dashed",
+    colour = "red"
+  ) +
+  facet_wrap(~ term_label, scales = "free_y") +
+  labs(
+    title = "Changes to fixed-effect estimates when each advert is removed (persuasion knowledge)",
+    x = "Advert removed",
+    y = "Fixed-effect estimate",
+    caption = "Dashed red line shows the full-model estimate."
+  ) +
+  theme_bw()
+
+# save
+
+ggsave(
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "fixedef_L2_pk.png"
+  ),
+  plot = fixedef_pk,
+  width = 8.27,
+  height = 3,
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r remove one advert plot inform}
+
+full_fixed <- data.frame(
+  term = names(fixef(inform_int)),
+  full_model = as.numeric(fixef(inform_int))
+)
+
+loo_fixed_long <- infl_inform_advert$`fixed.effects[-advert]` %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("removed_advert") %>%
+  pivot_longer(
+    cols = -removed_advert,
+    names_to = "term",
+    values_to = "estimate"
+  )
+
+# change labels in plot
+
+loo_fixed_long <- loo_fixed_long %>%
+  mutate(
+    term_label = dplyr::recode(
+      term,
+      "(Intercept)" = "Intercept",
+      "Training.condition1" = "Training",
+      "version1" = "Version",
+      "version1:Training.condition1" = "Version × Training"
+    )
+  )
+
+# plot
+
+fixedef_inform <- ggplot(loo_fixed_long, aes(x = removed_advert, y = estimate)) +
+  geom_point(size = 2) +
+  geom_hline(
+    data = full_fixed %>%
+      mutate(
+        term_label = dplyr::recode(
+          term,
+          "(Intercept)" = "Intercept",
+          "Training.condition1" = "Training",
+          "version1" = "Version",
+          "version1:Training.condition1" = "Version × Training"
+        )
+      ),
+    aes(yintercept = full_model),
+    linetype = "dashed",
+    colour = "red"
+  ) +
+  facet_wrap(~ term_label, scales = "free_y") +
+  labs(
+    title = "Changes to fixed-effect estimates when each advert is removed (source identification)",
+    x = "Advert removed",
+    y = "Fixed-effect estimate",
+    caption = "Dashed red line shows the full-model estimate."
+  ) +
+  theme_bw()
+
+# save
+
+ggsave(
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "fixedef_L2_inform.png"
+  ),
+  plot = fixedef_inform,
+  width = 8.27,
+  height = 5,
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r remove one advert plot cred}
+
+full_fixed <- data.frame(
+  term = names(fixef(cred_int)),
+  full_model = as.numeric(fixef(cred_int))
+)
+
+loo_fixed_long <- infl_cred_advert$`fixed.effects[-advert]` %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("removed_advert") %>%
+  pivot_longer(
+    cols = -removed_advert,
+    names_to = "term",
+    values_to = "estimate"
+  )
+
+# Label dictionary: includes both possible naming styles
+term_labels <- c(
+  "(Intercept)" = "Intercept",
+  "Training.condition1" = "Training",
+  "Training.condition" = "Training",
+  "version1" = "Version",
+  "version" = "Version",
+  "version1:Training.condition1" = "Version × Training",
+  "version:Training.condition" = "Version × Training",
+  "version1:Training.condition" = "Version × Training",
+  "version:Training.condition1" = "Version × Training"
+)
+
+# Apply labels to leave-one-out estimates
+loo_fixed_long <- loo_fixed_long %>%
+  mutate(
+    term_label = dplyr::recode(term, !!!term_labels),
+    term_label = factor(
+      term_label,
+      levels = c("Intercept", "Version", "Training", "Version × Training")
+    )
+  )
+
+# Apply labels to full-model estimates
+full_fixed <- full_fixed %>%
+  mutate(
+    term_label = dplyr::recode(term, !!!term_labels),
+    term_label = factor(
+      term_label,
+      levels = c("Intercept", "Version", "Training", "Version × Training")
+    )
+  )
+
+# Plot
+fixedef_cred <- ggplot(loo_fixed_long, aes(x = removed_advert, y = estimate)) +
+  geom_point(size = 2) +
+  geom_hline(
+    data = full_fixed,
+    aes(yintercept = full_model),
+    linetype = "dashed",
+    colour = "red"
+  ) +
+  facet_wrap(~ term_label, scales = "free_y") +
+  labs(
+    title = "Changes to fixed-effect estimates when each advert is removed (credibility)",
+    x = "Advert removed",
+    y = "Fixed-effect estimate",
+    caption = "Dashed red line shows the full-model estimate."
+  ) +
+  theme_bw()
+
+ggsave(
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "fixedef_L2_cred.png"
+  ),
+  plot = fixedef_cred,
+  width = 8.27,
+  height = 5,
+  units = "in",
+  dpi = 300
+)
+
+
+```
+
+
+### Participant-level
+
+```{r source identification level two assumptions participant}
 
 # Cook's D with influence.ME
 
@@ -1048,7 +1500,21 @@ pk_boot_ci <- confint(
 
 pk_boot_ci
 
-# confidence in regulation
+# informed
+
+# Persuasion Knowledge
+
+inform_boot_ci <- confint(
+  inform_int,
+  method = "boot",
+  nsim = 1000,
+  parm = "beta_",
+  oldNames = FALSE
+)
+
+inform_boot_ci
+
+# confidence in regulation, cumulative link
 
 ordinal_mod <- ordinal::clm(
   factor(election_reg, ordered = TRUE) ~ Training.condition,
