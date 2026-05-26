@@ -16,6 +16,7 @@ library(lavaan)
 library(tidyverse)
 library(lme4)
 library(lmerTest)
+library(emmeans)
 library(ggeffects)
 library(performance)
 library(knitr)
@@ -225,7 +226,7 @@ wilcox.test(useful_rank_1_num ~ Training.condition, data = betweenmeasure_df,
 
 ```
 
-## Apriori Statistical power
+## A priori Statistical power
 
 Sample size was in part constrained by financial considerations. A repeated measures design was adopted to increase statistical power. However, due to the novelty of this method in this empirical context, there was no clear parameters to harness within an apriori power calculation. 
 
@@ -326,6 +327,16 @@ reliability_cred$omega.tot
 
 ```{r}
 
+# univariate distributions
+
+psych::describe(mixedeffect_df$informed)
+
+psych::describe(mixedeffect_df$PK)
+
+psych::describe(mixedeffect_df$credibility)
+
+psych::describe(betweenmeasure_df$election_reg)
+
 # Calculate means and standard deviations
 descriptive_stats <- mixedeffect_df %>%
   group_by(Training.condition, version) %>%
@@ -353,11 +364,62 @@ descriptive_stats %>%
 
 Effect size calculation: 
 
-Brysbaert, M., & Debeer, D. (2025). How to Run Linear Mixed Effects Analysis for Pairwise Comparisons? A Tutorial and a Proposal for the Calculation of Standardized Effect Sizes. Journal of Cognition, 8(1): 5, pp. 1–36. DOI: https://doi.org/10.5334/joc.40
+Feingold, A. (2013). A regression framework for effect size assessments in longitudinal modeling of group differences. Review of General Psychology, 17(1), 111-121. https://pmc.ncbi.nlm.nih.gov/articles/PMC3743548/pdf/nihms489048.pdf
 
-### H1: Perceived source identification
+Piaskowski (2026) https://mirror.las.iastate.edu/CRAN/web/packages/emmeans/refman/emmeans.html
 
-```{r H1, echo=FALSE}
+Lenth, R. V. (2016). Least-squares means: the R package lsmeans. Journal of statistical software, 69, 1-33. http://dx.doi.org/10.18637/jss.v069.i01 
+
+“These results are consistent with the recent conclusion that “in certain situations (e.g., multilevel designs), no consensus exists on how to conceptualize and/or calculate effect size measures” (APA Publications and Communications Board Working Group on Journal Article Reporting Standards, 2008, p. 850).” (Feingold, 2013, p.3)
+
+In mixed-effect modelling, the appropriateness of using Cohens d is debated as there are multiple sources of variation that are challenging to account for. Below shows how the emmeans eff_size() function is used to estimate Cohen's d, and the assumptions employed in the estimation (see Piaskowski, 2026).
+
+```{r}
+
+# ready the variables for analysis
+
+mixedeffect_df <- mixedeffect_df %>%
+  mutate(
+    version = factor(version, levels = c(0, 1)),
+    Training.condition = factor(Training.condition, levels = c(0, 1))
+  )
+
+```
+
+### H1: Persuasion knowledge
+
+```{r H1, echo=FALSE, fig.align='center', warning=FALSE}
+
+pk_mod <- lmer(PK ~ version + Training.condition + (1 | id) + (1|advert), data = mixedeffect_df, control = lmerControl(optimizer = "bobyqa"))
+
+summary(pk_mod)
+
+# 95% confidence intervals 
+
+confint(pk_mod)
+
+# Calculating effect sizes through standardised coeffecients
+
+# estimated effect size of version, averaged over both training conditions
+
+emm_version <- emmeans(pk_mod, ~ version)
+
+cd_version_pk <- eff_size(
+  emm_version,
+  sigma = sigma(pk_mod), # Sigma is the model’s residual standard deviation, capturing within-unit variability
+  edf = Inf, #edf = 'effective degrees of freedom' for sigma, which is treated as known (Inf) due to the large sample size
+  method = "pairwise"
+)
+
+# reveals a negative number for the effect size because the mean of imprint effects is larger than the mean of no-imprint effects (and it calculates it as control - imprint). Reported as positive numbers in the paper.
+
+cd_version_pk
+
+```
+ 
+### H2: Perceived source clarification
+
+```{r H2, echo=FALSE, warning=FALSE}
 
 # run model
 
@@ -370,6 +432,32 @@ summary(inform_int)
 confint(inform_int)
 
 # Calculating effect sizes through standardised coeffecients
+
+# estimated effect size of version, averaged over both training conditions
+
+emm_version <- emmeans(inform_int, ~ version)
+
+cd_version_inform <- eff_size(
+  emm_version,
+  sigma = sigma(inform_int), # Sigma is the model’s residual standard deviation, capturing within-unit variability
+  edf = Inf, #edf = 'effective degrees of freedom' for sigma, which is treated as known (Inf) due to the large sample size
+  method = "pairwise"
+)
+
+cd_version_inform
+
+# estimated effect sizes for version within each training condition for the interaction term
+
+emm_inform_int <- emmeans(inform_int, ~ version | Training.condition)
+
+cd_int_inform <- eff_size(
+  emm_inform_int,
+  sigma = sigma(inform_int),
+  edf = Inf,          
+  method = "pairwise"
+)
+
+cd_int_inform
 
 
 ```
@@ -405,48 +493,36 @@ inform_interaction
 
 ```
 
-### H2: Persuasion knowledge
+### H3: Confidence in regulation
 
-```{r H2, echo=FALSE, fig.align='center'}
+```{r H3, echo=FALSE}
 
-pk_int <- lmer(PK ~ version*Training.condition + (1 | id) + (1|advert), data = mixedeffect_df)
+# Welch's t-test (unequal variances) 
+welch <- t.test(election_reg ~ Training.condition,
+                data = betweenmeasure_df,
+                var.equal = FALSE,    # Welch 
+                conf.level = 0.95,
+                na.action = na.omit)
+welch
 
-summary(pk_int)
+# cohens d
 
-# 95% confidence intervals 
+effectsize::cohens_d(election_reg ~ Training.condition, data = betweenmeasure_df)
 
-confint(pk_int)
+# Group descriptives
+desc <- betweenmeasure_df %>%
+  filter(!is.na(election_reg), !is.na(Training.condition)) %>%
+  group_by(Training.condition) %>%
+  summarise(n = n(), m = mean(election_reg), sd = sd(election_reg), .groups = "drop") %>%
+  arrange(Training.condition)
 
-
-# interaction plotted
-
-pk_preds <- ggeffects::ggpredict(pk_int, terms = c("Training.condition", "version"))
-
-dodge_width <- 0.3  
-
-pk_interaction <- ggplot2::ggplot(pk_preds, aes(x = x, y = predicted, color = group)) +
-  geom_point(position = position_dodge(width = dodge_width), size = 3) +  
-  geom_line(aes(group = group), position = position_dodge(width = dodge_width), linewidth = 1) +  # Lines with dodge
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
-                position = position_dodge(width = dodge_width), width = 0.1) +  # Error bars with dodge
-  scale_color_manual(values = c("0" = "#4682B4", "1" = "#800020"), 
-                     labels = c("Digital Imprint Absent", "Digital Imprint Viewed")) +
-  scale_x_discrete(labels = c("0" = "Not trained", "1" = "Trained")) +
-  labs(x = "Training Condition", 
-       y = "Predicted Score (95% CI)",
-       title = "") +
-  theme_minimal() +
-  theme(legend.title = element_blank(),
-        legend.position = "bottom",
-        legend.text = element_text(size = 12))
-
-pk_interaction
+m0  <- desc$m[1];  sd0 <- desc$sd[1];  n0 <- desc$n[1]
+m1  <- desc$m[2];  sd1 <- desc$sd[2];  n1 <- desc$n[2]
 
 ```
+### H4: Perceieved credibility
 
-### H3: Perceieved credibility
-
-```{r H3, echo=FALSE, fig.align='center'}
+```{r H4, echo=FALSE, fig.align='center'}
 
 cred_int <- lmer(credibility ~ version*Training.condition + (1 | id) + (1|advert), data = mixedeffect_df)
 
@@ -487,34 +563,6 @@ cred_interaction
 performance::check_model(inform_int)
 performance::check_model(pk_int)
 performance::check_model(cred_int)
-
-```
-
-### H4: Confidence in regulation
-
-```{r H4, echo=FALSE}
-
-# Welch's t-test (unequal variances) 
-welch <- t.test(election_reg ~ Training.condition,
-                data = betweenmeasure_df,
-                var.equal = FALSE,    # Welch 
-                conf.level = 0.95,
-                na.action = na.omit)
-welch
-
-# cohens d
-
-effectsize::cohens_d(election_reg ~ Training.condition, data = betweenmeasure_df)
-
-# Group descriptives
-desc <- betweenmeasure_df %>%
-  filter(!is.na(election_reg), !is.na(Training.condition)) %>%
-  group_by(Training.condition) %>%
-  summarise(n = n(), m = mean(election_reg), sd = sd(election_reg), .groups = "drop") %>%
-  arrange(Training.condition)
-
-m0  <- desc$m[1];  sd0 <- desc$sd[1];  n0 <- desc$n[1]
-m1  <- desc$m[2];  sd1 <- desc$sd[2];  n1 <- desc$n[2]
 
 ```
 
@@ -653,5 +701,372 @@ model <- '
 fit <- sem(model, data=df, cluster="id", estimator="MLR", std.lv=TRUE, meanstructure=TRUE, fixed.x=TRUE)
 
 summary(fit, standardized = TRUE, fit.measures = TRUE, ci = TRUE)
+
+```
+
+### Assumptions for MLE models
+
+- Functional form (linearity), fitted vs residual
+- Homogeneity of variance, scale location plot
+- Normality of level-1 residuals, Q-Q plot
+- Normality of random effects, Q-Q plot
+- Level-2 leverage points 
+
+```{r level one assumptions}
+
+library(lme4)
+library(ggplot2)
+library(patchwork)
+
+# 3-panel diagnostic for an lmer model
+diag_lmer <- function(fit, model_title = "Model", save_path = NULL) {
+  # data for plots
+  df <- data.frame(
+    fitted  = fitted(fit),                          # conditional fitted values (incl. RE)
+    sresid  = resid(fit, type = "pearson")          # Pearson residuals (≈ standardized)
+  )
+  df$resid <- resid(fit, type = "response")
+
+  # A) Residuals vs Fitted (functional form)
+  pA <- ggplot(df, aes(fitted, resid)) +
+    geom_point(shape = 16, alpha = 0.6) +
+    geom_smooth(method = "loess", se = FALSE, linewidth = 0.4) +
+    geom_hline(yintercept = 0, linetype = 2) +
+    labs(x = "Fitted values (conditional)", y = "Residuals",
+         title = paste(model_title, "Functional Form Check (Residuals vs Fitted)")) +
+    theme_bw(base_size = 11)
+
+  # B) Scale–Location (homoscedasticity)
+  pB <- ggplot(df, aes(fitted, sqrt(abs(sresid)))) +
+    geom_point(shape = 16, alpha = 0.6) +
+    geom_smooth(method = "loess", se = FALSE, linewidth = 0.4) +
+    labs(x = "Fitted values (conditional)",
+         y = expression(sqrt("|Pearson residuals|")),
+         title = paste(model_title, "Level-1: Homoskedasticity Check (Scale–Location)")) +
+    theme_bw(base_size = 11)
+
+  # C) Normal Q–Q (of Pearson residuals)
+  qq <- qqnorm(df$sresid, plot.it = FALSE)
+  qq_df <- data.frame(theoretical = qq$x, sample = qq$y)
+
+  pC <- ggplot(qq_df, aes(theoretical, sample)) +
+    geom_point(shape = 16, alpha = 0.6) +
+    geom_abline(intercept = 0, slope = 1, linetype = 2) +
+    labs(x = "Theoretical Quantiles", y = "Sample Quantiles",
+         title = paste(model_title, "Level-1: Normality Check (Normal Q–Q)")) +
+    theme_bw(base_size = 11)
+
+  # combine vertically
+  p <- (pA / pB / pC) +
+    plot_annotation(
+      title = paste(model_title, ": Inspecting Mixed-Model Assumptions"),
+      subtitle = deparse(formula(fit)),
+      tag_levels = "A"
+    ) &
+    theme(plot.title = element_text(size = 12),
+          plot.subtitle = element_text(size = 9))
+
+  if (!is.null(save_path)) {
+    ggsave(save_path, plot = p, width = 8.27, height = 11.69, units = "in", dpi = 300)
+  }
+  p
+}
+
+# Apply
+
+diag_lmer(pk_mod, model_title = "Hypothesis 1: Persuasion Knowledge", save_path = "assumptions/pk_lmer_diagnostics.png")
+
+diag_lmer(inform_int, model_title = "Hypothesis 2: Source Identification", save_path = "assumptions/sourceid_lmer_diagnostics.png")
+
+diag_lmer(cred_int, model_title = "Hypothesis 4: Perceived Credibility", save_path = "assumptions/credibility_lmer_diagnostics.png")
+
+```
+
+### Level-2 assumptions (residuals and leverage)
+
+```{r persuasion knowledge level two assumptions}
+# ERRORS FOR STIMULI-CLUSTER CODE
+
+# Cook's D with influence.ME
+
+infl_pk <- influence(pk_mod, group = "advert")  # cluster-level influence object
+cd   <- cooks.distance(infl_pk)             # Cook’s D per cluster (id)
+thr  <- 4/length(cd)                       # heuristic cutoff
+sum(cd > thr) 
+
+cd_df <- data.frame(
+  id = 1:length(cd),
+  cooksD = cd
+)
+
+pk_cook_l2 <- ggplot(cd_df, aes(x = advert, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Cook's D by cluster",
+    x = "Cluster index (experimental stimuli)",
+    y = "Cook's distance (red line = 0.003)"
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of residuals
+
+# Standardised random intercepts (z_b)
+re <- ranef(pk_mod, condVar = TRUE)$advert
+postVar <- attr(ranef(pk_mod, condVar = TRUE)[[1]], "postVar")
+z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+
+# Q–Q plot
+pk_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q–Q Plot of Standardised Level-2 Random Effects",
+    x = "Theoretical Quantiles", y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+pk_cook_l2
+
+# Combine the two plots vertically with patchwork
+pk_l2_diagnostics <- (pk_qq_l2 / pk_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Persuasion Knowledge Model",
+    subtitle = "A: Normality of Random Effects (stimuli)   |   B: Cluster Influence (Cook’s D)",
+    tag_levels = "A"   # labels them A, B automatically
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+ggsave(
+  filename = "assumptions/pk_L2_diagnostics_advert.png",
+  plot = pk_l2_diagnostics,
+  width = 8.27,    # A4 width in inches
+  height = 9,  # A4 height in inches
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r source identification level two assumptions}
+
+# Cook's D with influence.ME
+
+infl_inf <- influence(inform_int, group = "id")  # cluster-level influence object
+cd   <- cooks.distance(infl_inf)             # Cook’s D per cluster (id)
+thr  <- 4/length(cd)                       # heuristic cutoff
+sum(cd > thr) 
+
+cd_df <- data.frame(
+  id = 1:length(cd),
+  cooksD = cd
+)
+
+inf_cook_l2 <- ggplot(cd_df, aes(x = id, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Cook's D by cluster",
+    x = "Cluster index (id)",
+    y = "Cook's distance (red line = 0.003)"
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of residuals
+
+# Standardised random intercepts (z_b)
+re <- ranef(inform_int, condVar = TRUE)$id
+postVar <- attr(ranef(inform_int, condVar = TRUE)[[1]], "postVar")
+z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+
+# Q–Q plot
+inf_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q–Q Plot of Standardised Level-2 Random Effects",
+    x = "Theoretical Quantiles", y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+# Combine the two plots vertically with patchwork
+inf_l2_diagnostics <- (inf_qq_l2 / inf_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Perc. Source Identification Model",
+    subtitle = "A: Normality of Random Effects   |   B: Cluster Influence (Cook’s D)",
+    tag_levels = "A"   # labels them A, B automatically
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+ggsave(
+  filename = "assumptions/inform_L2_diagnostics.png",
+  plot = inf_l2_diagnostics,
+  width = 8.27,    # A4 width in inches
+  height = 9,  # A4 height in inches
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r credibility level two assumptions}
+
+# Cook's D with influence.ME
+
+infl_cred <- influence(cred_int, group = "id")  # cluster-level influence object
+cd   <- cooks.distance(infl_cred)             # Cook’s D per cluster (id)
+thr  <- 4/length(cd)                       # heuristic cutoff
+sum(cd > thr) 
+
+cd_df <- data.frame(
+  id = 1:length(cd),
+  cooksD = cd
+)
+
+cred_cook_l2 <- ggplot(cd_df, aes(x = id, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Cook's D by cluster",
+    x = "Cluster index (id)",
+    y = "Cook's distance (red line = 0.003)"
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of residuals
+
+# Standardised random intercepts (z_b)
+re <- ranef(cred_int, condVar = TRUE)$id
+postVar <- attr(ranef(cred_int, condVar = TRUE)[[1]], "postVar")
+z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+
+# Q–Q plot
+cred_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q–Q Plot of Standardised Level-2 Random Effects",
+    x = "Theoretical Quantiles", y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+# Combine the two plots vertically with patchwork
+cred_l2_diagnostics <- (cred_qq_l2 / cred_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Perc. Credibility Model",
+    subtitle = "A: Normality of Random Effects   |   B: Cluster Influence (Cook’s D)",
+    tag_levels = "A"   # labels them A, B automatically
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+ggsave(
+  filename = "assumptions/cred_L2_diagnostics.png",
+  plot = cred_l2_diagnostics,
+  width = 8.27,    # A4 width in inches
+  height = 9,  # A4 height in inches
+  units = "in",
+  dpi = 300
+)
+
+```
+
+### Assumptions for Welches t-test
+
+```{r assumptions for H3}
+
+welch_df <- betweenmeasure_df %>%
+  select(election_reg, Training.condition) %>%
+  filter(!is.na(election_reg), !is.na(Training.condition)) %>%
+  mutate(Training.condition = as.factor(Training.condition))
+
+# check for approx normality within groups
+
+welches_dist <- ggplot(welch_df, aes(x = election_reg)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(~ Training.condition) +
+  labs(
+    x = "Confidence in Regulation",
+    y = "Count"
+  )
+
+# normality
+
+welches_normality <- ggplot(welch_df, aes(sample = election_reg)) +
+  stat_qq() +
+  stat_qq_line() +
+  facet_wrap(~ Training.condition) +
+  labs(
+    x = "Theoretical quantiles",
+    y = "Sample quantiles"
+  )
+
+# save
+
+ggsave(
+  filename = file.path(
+    "C:/Users/pcq21hcg/Documents/digitalimprints_experiment",
+    "assumptions",
+    "assumption_welches_normality.png"
+  ),
+  plot = welches_normality,
+  width = 8.27,
+  height = 5,
+  units = "in",
+  dpi = 300
+)
+
+```
+
+
+# Robustness checks
+
+Bootstrapped confidence intervals best for skewed distributions.
+
+```{r}
+
+# Persuasion Knowledge
+
+pk_boot_ci <- confint(
+  pk_mod,
+  method = "boot",
+  nsim = 1000,
+  parm = "beta_",
+  oldNames = FALSE
+)
+
+pk_boot_ci
+
+# confidence in regulation
+
+ordinal_mod <- ordinal::clm(
+  factor(election_reg, ordered = TRUE) ~ Training.condition,
+  data = welch_df,
+  link = "logit"
+)
+
+summary(ordinal_mod)
+
+confint(ordinal_mod)
+
+# odds ratio
+
+OR <- exp(coef(ordinal_mod)["Training.condition1"])
+CI <- exp(confint(ordinal_mod)["Training.condition1", ])
+
+# assumption test
+
+ordinal::nominal_test(ordinal_mod)
 
 ```
