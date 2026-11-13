@@ -763,11 +763,47 @@ training_df <- training_df %>%
 
 ```
 
+### Outcome: Recall of Names {.tabset}
+
+Correct names:
+
+-   Advert 1: Common sense collective: CSC 
+-   Advert 2: Breaking barriers alliance: BBA
+-   Advert 3: Speak freely inc: SFI
+-   Advert 4: Campaign for a better Britain: CBB
+
+```{r, include=FALSE}
+
+#the following code creates a new dataframe that matches the campaigner name - currently a binary variable in imprint_df specifying if the name was recalled - with the corresponding advert. This creates a new variable 'recall' so all responses can be analysed together.
+
+recall_df <- imprint_df %>%
+  dplyr::select(id, advert, version, Training.condition, CSC, BBA, SFI, CBB) %>%
+  mutate(
+    CSC = as.integer(CSC),
+    BBA = as.integer(BBA),
+    SFI = as.integer(SFI),
+    CBB = as.integer(CBB),
+    recall = case_when(
+    advert == "advert.1" ~ CSC,
+    advert == "advert.2" ~ BBA,
+    advert == "advert.3" ~ SFI,
+    advert == "advert.4" ~ CBB,
+    TRUE ~ NA_integer_ # Fallback in case of unexpected 'advert' values
+  ))
+
+recall_df <- recall_df %>%
+  dplyr::select(id, advert, version, recall, everything())
+
+recall_df <- recall_df %>%
+  mutate(recall = factor(recall - 1, levels = 0:1))
+
+```
+
 #### Cleaning up the R environment
 
 ```{r}
 
-rm(list=setdiff(ls(), c("data", "imprint_df", "training_df")))
+rm(list=setdiff(ls(), c("data", "imprint_df", "training_df", "recall_df")))
 
 ```
 
