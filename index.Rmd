@@ -2,7 +2,7 @@
 title: 'Digital Imprints Experiment'
 subtitle: 'Designed in collaboration with the Electoral Commission'
 author:
--   name: Hazel Gordon, Prof Katharine Dommett, Prof Tom Stafford, Dr Junyan Zhu
+-   name: Hazel Gordon, Dr Junyan Zhu, Prof Katharine Dommett, Prof Tom Stafford
 date: "`r Sys.Date()`"
 output: 
   html_document:
@@ -30,11 +30,9 @@ body {
 
 This document includes all information referenced in the main paper. We show full details of the process of analysis and the steps taken to ensure the statistical viability of those reported, documenting what the pre-registered models were and providing justification in cases where the final models differed. 
 
-As a supplementary analysis, we also show how differences between the adverts impacted key outcome variables. However, keep in mind the mixed-effect models used tested if the main effects were generalisable beyond specific stimuli-level differences. The advert-level results are provided here for context but do not affect the generalisability or statistical robustness of our primary conclusions. 
-
 ### Model Fit Considerations
 
-For hypotheses 1-3 we used mixed-effect modelling techniques. It is essential for random effect model structures to be theoretically motivated and justified (Brown, 2021). During the pre-registration stage, it was reasoned the inclusions of two separate random intercept terms set for participants (1,322 grouping levels) and each material (four grouping levels) were the most suitable due to how each participant would approach the materials with a different evaluative baseline, and in turn each piece of material differed in its message and format creating its own baseline through which it would be judged from. However, during the process of data analysis, some key considerations came to light which concerned best practice for multi-level models, a topic debated across the literature.
+For hypotheses 1-5 we used mixed-effect modelling techniques. It is essential for random effect model structures to be theoretically motivated and justified (Brown, 2021). During the pre-registration stage, it was reasoned the inclusions of two separate random intercept terms set for participants (1,322 grouping levels) and each material (four grouping levels) were the most suitable due to how each participant would approach the materials with a different evaluative baseline, and in turn each piece of material differed in its message and format creating its own baseline through which it would be judged from. However, during the process of data analysis, some key considerations came to light which concerned best practice for multi-level models, a topic debated across the literature.
 
 For example, it is recognised that not accounting for correlations within the random effects increases the risk of a type 1 error when estimated fixed effects (Matuschek et al., 2017). For this reason, Barr et al. (2013) recommend always opting for the ‘maximal’ model (with the highest complexity) that can be theoretically justified. However, increasing model complexity also reduces statistical power, requiring consideration as to whether it can be deemed a necessary trade off (Matuschek et al., 2017). Matuschek et al. (2017) recommend using estimators of model fit, such as the Likelihood Ratio Test (LRT) and the Akaike Information Criterion (AIC) to check if increasing complexity substantially improves model fit.
 
@@ -1440,7 +1438,7 @@ Random effects are also necessary for the adverts themselves, to acknowledge tha
 
 *Did the presence of a digital imprint with a piece of campaign material increase participant awareness that the material was an advertisement?*
 
-This model was not pre-registered, but would introduced on the back of construct validity checks supporting that the four items measuring PK were actually two seperate constructs.
+A CFA supported that the four items measuring PK were actually two seperate constructs.
 
 #### Plot: raw data
 
@@ -1768,7 +1766,7 @@ tost_from_mixed_model <- function(model, term, sesoi_d = 0.1, alpha = 0.05) {
   return(result)
 }
 
-# Print method for nice output
+# Print method
 print.tost_d_result <- function(x, ...) {
   cat("TOST for Cohen's d:\n")
   cat(sprintf("  d estimate       = %.3f\n", x$d))
@@ -1785,7 +1783,7 @@ print.tost_d_result <- function(x, ...) {
 ```{r, echo=FALSE}
 
 # Run TOST on "version1" fixed effect from ainform_pk1
-tost_result <- tost_from_mixed_model(ainform_pk1, "version1")
+tost_result <- tost_from_mixed_model(cred_int, "version1:Training.condition1")
 print(tost_result)
 
 ```
@@ -1962,11 +1960,15 @@ plot_outcomes(imprint_df, "Credibility")
 
 Pre-registered models:
 
-- 
+- model 7 <- lmer(accurateness ~ training condition + imprint viewed + training condition*imprint viewed + (1|id) + (1|advert))
+- model 8 <- lmer(trustworthiness ~ training condition + imprint viewed + training condition*imprint viewed + (1|id) + (1|advert))
+- model 9 <- lmer(believability ~ training condition + imprint viewed + training condition*imprint viewed + (1|id) + (1|advert))
+- model 10 <- lmer(factualness ~ training condition + imprint viewed + training condition*imprint viewed + (1|id) + (1|advert))
 
 Models reported in paper:
 
-- model 5 <- lmer(credibility ~ Training.condition + version + agree_value + Training.condition*version + (1|id) + (1|advert))
+- model 2 <- lmer(credibility ~ Training.condition + version + agree_value + (1|id) + (1|advert))
+- model 3 <- lmer(credibility ~ Training.condition + version + agree_value + Training.condition*version + (1|id) + (1|advert))
 
 Reason for divergence:
 
@@ -2095,19 +2097,21 @@ fixed_effects %>%
 
 #### False discovery rate
 
+For the model without the interaction term, where credibility is significant.
+
 ```{r echo=FALSE, fig.align='center'}
 
 #p-values adjusted for false discovery rate
 
 # Extract p-values from the summary of the model
-p_vals <- summary(cred_1)$coefficients[, "Pr(>|t|)"]
+p_vals <- summary(cred)$coefficients[, "Pr(>|t|)"]
 
 # Adjust p-values using the Benjamini-Hochberg method for FDR
 adjusted_p_vals <- p.adjust(p_vals, method = "fdr")
 
 # Create a data frame with original and adjusted p-values
 p_val_table <- data.frame(
-  Fixed_Effect = rownames(summary(cred_1)$coefficients), 
+  Fixed_Effect = rownames(summary(cred)$coefficients), 
   Original_P_Value = p_vals,
   Adjusted_P_Value = adjusted_p_vals,
   row.names = NULL
@@ -2125,7 +2129,6 @@ p_val_table <- p_val_table %>%
   mutate(Fixed_Effect = case_when(
     Fixed_Effect == "version" ~ "Digital imprint viewed\n (ref: not viewed)",
     Fixed_Effect == "Training.condition" ~ "Training\n (ref: no training)",
-    Fixed_Effect == "Training.condition:version" ~ "Training*Version",
     TRUE ~ Fixed_Effect
   ))
 
@@ -2300,6 +2303,8 @@ kable(final_table, format = "html", caption = "Cohen's d and 95% CI for Fixed Ef
 ```
 
 #### Equivelence test
+
+Top is the effect of version, bottom is the interaction.
 
 ```{r, echo=FALSE}
 
@@ -2595,7 +2600,7 @@ kable(summary_stats, format = "html", digits = 2, caption = "Decriptive bivariat
 
 #### Pre-registration deviations
 
-
+model 4 <- lmer(informed ~ version + (1|id) + (1|advert), data = imprint_df)
 
 #### Model fit metrics: AIC
 
@@ -2839,7 +2844,7 @@ fixed_effects %>%
 
 #### Effect size
 
-Total standard deviations are used to estimate population level effect sizes, using cohen's d thresholds as the comparative framework.
+Total standard deviations are used to estimate population level effect sizes, using cohen's d thresholds as the comparison thresholds.
 
 ```{r, echo=FALSE}
 
@@ -2884,7 +2889,38 @@ kable(effect_df, format = "html", caption = "Cohen's d and 95% CI for Fixed Effe
 
 The code below won't knit, but works when run manually.
 
+Outcomes:
+
+Model 4:
+
+TOST for Cohen's d (version):
+  d estimate       = 0.206
+  90% CI for d     = [0.161, 0.251]
+  Lower bound test: t(3960.9) = 13.42, p = 0.0000
+  Upper bound test: t(3960.9) = 4.65, p = 1.0000
+  Equivalence result: NOT EQUIVALENT
+
+Model 5:
+
+TOST for Cohen's d (effect of version):
+  d estimate       = 0.135
+  90% CI for d     = [0.072, 0.198]
+  Lower bound test: t(3959.4) = 7.29, p = 0.0000
+  Upper bound test: t(3959.4) = 1.09, p = 0.8621
+  Equivalence result: NOT EQUIVALENT
+  
+TOST for Cohen's d (effect of interaction):
+  d estimate       = 0.044
+  90% CI for d     = [-0.047, 0.134]
+  Lower bound test: t(3925.9) = 3.12, p = 0.0009
+  Upper bound test: t(3925.9) = -1.22, p = 0.1103
+  Equivalence result: NOT EQUIVALENT
+
 ```{r eval=FALSE}
+
+# Run TOST on "version1" fixed effect
+tost_result <- tost_from_mixed_model(informed_simple, "version1")
+print(tost_result)
 
 # Run TOST on "version1" fixed effect
 tost_result <- tost_from_mixed_model(informed_model, "version1")
@@ -4473,4 +4509,305 @@ composite_plot
 
 ```
 
+### Assumptions for MLE models
+
+- Functional form (linearity), fitted vs residual
+- Homogeneity of variance, scale location plot
+- Normality of level-1 residuals, Q-Q plot
+- Normality of random effects, Q-Q plot
+- Level-2 leverage points 
+
+```{r level one assumptions}
+
+library(lme4)
+library(ggplot2)
+library(patchwork)
+
+# 3-panel diagnostic for an lmer model
+diag_lmer <- function(fit, model_title = "Model", save_path = NULL) {
+  # data for plots
+  df <- data.frame(
+    fitted  = fitted(fit),                          # conditional fitted values (incl. RE)
+    sresid  = resid(fit, type = "pearson")          # Pearson residuals (≈ standardized)
+  )
+  df$resid <- resid(fit, type = "response")
+
+  # A) Residuals vs Fitted (functional form)
+  pA <- ggplot(df, aes(fitted, resid)) +
+    geom_point(shape = 16, alpha = 0.6) +
+    geom_smooth(method = "loess", se = FALSE, linewidth = 0.4) +
+    geom_hline(yintercept = 0, linetype = 2) +
+    labs(x = "Fitted values (conditional)", y = "Residuals",
+         title = paste(model_title, "Functional Form Check (Residuals vs Fitted)")) +
+    theme_bw(base_size = 11)
+
+  # B) Scale–Location (homoscedasticity)
+  pB <- ggplot(df, aes(fitted, sqrt(abs(sresid)))) +
+    geom_point(shape = 16, alpha = 0.6) +
+    geom_smooth(method = "loess", se = FALSE, linewidth = 0.4) +
+    labs(x = "Fitted values (conditional)",
+         y = expression(sqrt("|Pearson residuals|")),
+         title = paste(model_title, "Level-1: Homoskedasticity Check (Scale–Location)")) +
+    theme_bw(base_size = 11)
+
+  # C) Normal Q–Q (of Pearson residuals)
+  qq <- qqnorm(df$sresid, plot.it = FALSE)
+  qq_df <- data.frame(theoretical = qq$x, sample = qq$y)
+
+  pC <- ggplot(qq_df, aes(theoretical, sample)) +
+    geom_point(shape = 16, alpha = 0.6) +
+    geom_abline(intercept = 0, slope = 1, linetype = 2) +
+    labs(x = "Theoretical Quantiles", y = "Sample Quantiles",
+         title = paste(model_title, "Level-1: Normality Check (Normal Q–Q)")) +
+    theme_bw(base_size = 11)
+
+  # combine vertically
+  p <- (pA / pB / pC) +
+    plot_annotation(
+      title = paste(model_title, ": Inspecting Mixed-Model Assumptions"),
+      subtitle = deparse(formula(fit)),
+      tag_levels = "A"
+    ) &
+    theme(plot.title = element_text(size = 12),
+          plot.subtitle = element_text(size = 9))
+
+  if (!is.null(save_path)) {
+    ggsave(save_path, plot = p, width = 8.27, height = 11.69, units = "in", dpi = 300)
+  }
+  p
+}
+
+# Apply
+
+diag_lmer(pk_mod, model_title = "Hypothesis 1: Persuasion Knowledge", save_path = "assumptions/pk_lmer_diagnostics.png")
+
+diag_lmer(inform_int, model_title = "Hypothesis 2: Source Identification", save_path = "assumptions/sourceid_lmer_diagnostics.png")
+
+diag_lmer(cred_int, model_title = "Hypothesis 4: Perceived Credibility", save_path = "assumptions/credibility_lmer_diagnostics.png")
+
+```
+
+### Level-2 assumptions (residuals and leverage)
+
+```{r persuasion knowledge level two assumptions}
+# ERRORS FOR STIMULI-CLUSTER CODE
+
+# Cook's D with influence.ME
+
+infl_pk <- influence(pk_mod, group = "advert")  # cluster-level influence object
+cd   <- cooks.distance(infl_pk)             # Cook’s D per cluster (id)
+thr  <- 4/length(cd)                       # heuristic cutoff
+sum(cd > thr) 
+
+cd_df <- data.frame(
+  id = 1:length(cd),
+  cooksD = cd
+)
+
+pk_cook_l2 <- ggplot(cd_df, aes(x = advert, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Cook's D by cluster",
+    x = "Cluster index (experimental stimuli)",
+    y = "Cook's distance (red line = 0.003)"
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of residuals
+
+# Standardised random intercepts (z_b)
+re <- ranef(pk_mod, condVar = TRUE)$advert
+postVar <- attr(ranef(pk_mod, condVar = TRUE)[[1]], "postVar")
+z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+
+# Q–Q plot
+pk_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q–Q Plot of Standardised Level-2 Random Effects",
+    x = "Theoretical Quantiles", y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+pk_cook_l2
+
+# Combine the two plots vertically with patchwork
+pk_l2_diagnostics <- (pk_qq_l2 / pk_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Persuasion Knowledge Model",
+    subtitle = "A: Normality of Random Effects (stimuli)   |   B: Cluster Influence (Cook’s D)",
+    tag_levels = "A"   # labels them A, B automatically
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+ggsave(
+  filename = "assumptions/pk_L2_diagnostics_advert.png",
+  plot = pk_l2_diagnostics,
+  width = 8.27,    # A4 width in inches
+  height = 9,  # A4 height in inches
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r source identification level two assumptions}
+
+# Cook's D with influence.ME
+
+infl_inf <- influence(inform_int, group = "id")  # cluster-level influence object
+cd   <- cooks.distance(infl_inf)             # Cook’s D per cluster (id)
+thr  <- 4/length(cd)                       # heuristic cutoff
+sum(cd > thr) 
+
+cd_df <- data.frame(
+  id = 1:length(cd),
+  cooksD = cd
+)
+
+inf_cook_l2 <- ggplot(cd_df, aes(x = id, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Cook's D by cluster",
+    x = "Cluster index (id)",
+    y = "Cook's distance (red line = 0.003)"
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of residuals
+
+# Standardised random intercepts (z_b)
+re <- ranef(inform_int, condVar = TRUE)$id
+postVar <- attr(ranef(inform_int, condVar = TRUE)[[1]], "postVar")
+z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+
+# Q–Q plot
+inf_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q–Q Plot of Standardised Level-2 Random Effects",
+    x = "Theoretical Quantiles", y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+# Combine the two plots vertically with patchwork
+inf_l2_diagnostics <- (inf_qq_l2 / inf_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Perc. Source Identification Model",
+    subtitle = "A: Normality of Random Effects   |   B: Cluster Influence (Cook’s D)",
+    tag_levels = "A"   # labels them A, B automatically
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+ggsave(
+  filename = "assumptions/inform_L2_diagnostics.png",
+  plot = inf_l2_diagnostics,
+  width = 8.27,    # A4 width in inches
+  height = 9,  # A4 height in inches
+  units = "in",
+  dpi = 300
+)
+
+```
+
+```{r credibility level two assumptions}
+
+# Cook's D with influence.ME
+
+infl_cred <- influence(cred_int, group = "id")  # cluster-level influence object
+cd   <- cooks.distance(infl_cred)             # Cook’s D per cluster (id)
+thr  <- 4/length(cd)                       # heuristic cutoff
+sum(cd > thr) 
+
+cd_df <- data.frame(
+  id = 1:length(cd),
+  cooksD = cd
+)
+
+cred_cook_l2 <- ggplot(cd_df, aes(x = id, y = cooksD)) +
+  geom_col(fill = "black", alpha = 0.7) +
+  geom_hline(yintercept = thr, color = "red3", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Cook's D by cluster",
+    x = "Cluster index (id)",
+    y = "Cook's distance (red line = 0.003)"
+  ) +
+  theme_bw(base_size = 12)
+
+# Q-Q plot of residuals
+
+# Standardised random intercepts (z_b)
+re <- ranef(cred_int, condVar = TRUE)$id
+postVar <- attr(ranef(cred_int, condVar = TRUE)[[1]], "postVar")
+z_b <- as.numeric(re[[1]] / sqrt(postVar[1, 1, ]))
+
+# Q–Q plot
+cred_qq_l2 <- ggplot(data.frame(z_b = z_b), aes(sample = z_b)) +
+  stat_qq(shape = 16) +
+  stat_qq_line(linetype = 2, alpha = 0.6) +
+  labs(
+    title = "Q–Q Plot of Standardised Level-2 Random Effects",
+    x = "Theoretical Quantiles", y = "Sample Quantiles"
+  ) +
+  theme_bw(base_size = 12)
+
+# Combine the two plots vertically with patchwork
+cred_l2_diagnostics <- (cred_qq_l2 / cred_cook_l2) +
+  plot_annotation(
+    title = "Level-2 Diagnostics for Perc. Credibility Model",
+    subtitle = "A: Normality of Random Effects   |   B: Cluster Influence (Cook’s D)",
+    tag_levels = "A"   # labels them A, B automatically
+  ) &
+  theme(
+    plot.title = element_text(size = 13, face = "bold"),
+    plot.subtitle = element_text(size = 10),
+    plot.tag = element_text(size = 12, face = "bold")
+  )
+
+ggsave(
+  filename = "assumptions/cred_L2_diagnostics.png",
+  plot = cred_l2_diagnostics,
+  width = 8.27,    # A4 width in inches
+  height = 9,  # A4 height in inches
+  units = "in",
+  dpi = 300
+)
+
+```
+
+# Robustness checks
+
+Bootstrapped confidence intervals best for skewed distributions.
+
+```{r}
+
+# Persuasion Knowledge
+
+pk_boot_ci <- confint(
+  pk_mod,
+  method = "boot",
+  nsim = 1000,
+  parm = "beta_",
+  oldNames = FALSE
+)
+
+pk_boot_ci
+
+```
+
+
 ### References
+
+https://pedermisager.org/blog/mixed_model_equivalence/
